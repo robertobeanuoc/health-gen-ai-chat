@@ -1,4 +1,6 @@
+{{
 config(
     materialized='table'
 )
-select 1 as dummy;
+}}
+select 1 as dummy_id
