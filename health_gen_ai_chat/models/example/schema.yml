@@ -2,20 +2,21 @@
 version: 2
 
 models:
-  - name: dummy
+  - name: dummy_table
     description: "A dummy model for testing purposes"
     columns:
-      - name: id
+      - name: dummy_id
         description: "The unique identifier for each record"
         tests:
           - not_null
           - unique
-      - name: value
-        description: "A sample value column for demonstration"
-
 sources:
-  - name: cgm_about_connector
-    database: cgm_about_connector
+  - name: cgm_abbot_connector
+    database: cgm_abbot_connector
     tables:
       - name: glucose_register
-        description: "External source data from cgm_about_connector"
+
+semantic_models:
+   - name: glucose_register
+     model: ref('glucose_register')
+
