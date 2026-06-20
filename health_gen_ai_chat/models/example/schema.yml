@@ -1,0 +1,21 @@
+
+version: 2
+
+models:
+  - name: dummy
+    description: "A dummy model for testing purposes"
+    columns:
+      - name: id
+        description: "The unique identifier for each record"
+        tests:
+          - not_null
+          - unique
+      - name: value
+        description: "A sample value column for demonstration"
+
+sources:
+  - name: cgm_about_connector
+    database: cgm_about_connector
+    tables:
+      - name: glucose_register
+        description: "External source data from cgm_about_connector"
