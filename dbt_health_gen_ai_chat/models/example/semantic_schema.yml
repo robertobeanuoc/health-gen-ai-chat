@@ -1,31 +1,31 @@
-
 version: 2
 
 semantic_models:
-  - name: glucose_register
-    model: ref('glucose_register')
-    columns:
-      - name: id
-        description: "The unique identifier for each record"
-        tests:
-          - not_null
-          - unique
-      - name: patient_id
-        description: "The identifier for the patient"
-        tests:
-          - not_null
-      - name: glucose_level
-        description: "The glucose level measurement"
-        tests:
-          - not_null
-      - name: measurement_time
-        description: "The time when the glucose level was measured"
-        tests:
-          - not_null
-    metrics:
-      - name: average_glucose_level
-        description: "The average glucose level for the patient"
-        type: numeric
-        sql: "AVG(glucose_level)"
-    
+  - name: semantic_glucose_register
+    description: "A semantic model for the glucose_register table"
+    model: ref('view_glucose_register')
+    entities:
+      - name: uuid
+        type: primary
 
+    dimensions:
+
+      - name: timestamp_day
+        type: time
+        type_params:
+          time_granularity: day
+        description: "The timestamp when the record was recorded"
+
+      - name: timestamp_hour
+        type: categorical
+        description: "The timestamp when the record was recorded"
+      
+      - name: sensor_scan
+        type: categorical
+        description: "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)"
+
+    measures:
+      - name: glucose_value_average
+        expr: glucose_value 
+        agg: average           
+        description: "The average glucose value"
