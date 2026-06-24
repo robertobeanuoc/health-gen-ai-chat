@@ -15,8 +15,3 @@ sources:
     database: cgm_abbot_connector
     tables:
       - name: glucose_register
-
-semantic_models:
-   - name: glucose_register
-     model: ref('glucose_register')
-

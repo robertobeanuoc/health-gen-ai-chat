@@ -1,0 +1,31 @@
+
+version: 2
+
+semantic_models:
+  - name: glucose_register
+    model: ref('glucose_register')
+    columns:
+      - name: id
+        description: "The unique identifier for each record"
+        tests:
+          - not_null
+          - unique
+      - name: patient_id
+        description: "The identifier for the patient"
+        tests:
+          - not_null
+      - name: glucose_level
+        description: "The glucose level measurement"
+        tests:
+          - not_null
+      - name: measurement_time
+        description: "The time when the glucose level was measured"
+        tests:
+          - not_null
+    metrics:
+      - name: average_glucose_level
+        description: "The average glucose level for the patient"
+        type: numeric
+        sql: "AVG(glucose_level)"
+    
+

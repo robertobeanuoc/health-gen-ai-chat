@@ -1,2 +1,7 @@
 dbt-mysql
 six
+mcp>=1.0.0
+fastmcp>=0.1.0
+SQLAlchemy>=2.0.0
+PyMySQL>=1.1.0
+cryptography>=41.0.0
