@@ -1,6 +1,8 @@
 {{
     config(
         materialized='view',
+        on_schema_change='sync_all_columns',
+        description='This view contains glucose register data.'
     )
 }}
 SELECT 
