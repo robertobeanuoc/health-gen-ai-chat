@@ -1,4 +1,6 @@
 
-target/
+target/*
+!target/manifest.json
+!target/semantic_manifest.json
 dbt_packages/
 logs/
