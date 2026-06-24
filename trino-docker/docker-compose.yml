@@ -1,0 +1,17 @@
+services:
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino-coordinator
+    ports:
+      - "8080:8080"
+    volumes:
+      # Inyecta el directorio local 'catalog' en el contenedor
+      - ./catalog:/etc/trino/catalog:ro
+    environment:
+      # Opcional: Ajustes de memoria para la JVM de Trino
+      - JAVA_TOOL_OPTIONS=-Xmx2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
