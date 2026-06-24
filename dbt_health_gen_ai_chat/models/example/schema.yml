@@ -1,0 +1,36 @@
+
+version: 2
+
+models:
+  - name: dummy_table
+    description: "A dummy model for testing purposes"
+    columns:
+      - name: dummy_id
+        description: "The unique identifier for each record"
+        tests:
+          - not_null
+          - unique
+sources:
+  - name: cgm_abbot_connector
+
+    database: cgm_abbot_connector
+    tables:
+      - name: glucose_register
+        semantic_model: 
+          enabled: true
+          name: semantic_glucose_register
+
+        columns:
+          - name: uuid
+            description: "The unique identifier for each record"
+            type: string
+          - name: row_created_at
+            description: "The identifier for the patient"
+            type: datetime
+          - name: glucose_value
+            description: "The glucose level measurement"
+            type: double
+          - name: sensor_scan
+            description: "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)"
+            type: tinyint
+            

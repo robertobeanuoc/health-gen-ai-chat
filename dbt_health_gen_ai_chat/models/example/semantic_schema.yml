@@ -1,0 +1,31 @@
+version: 2
+
+semantic_models:
+  - name: semantic_glucose_register
+    description: "A semantic model for the glucose_register table"
+    model: ref('view_glucose_register')
+    entities:
+      - name: uuid
+        type: primary
+
+    dimensions:
+
+      - name: timestamp_day
+        type: time
+        type_params:
+          time_granularity: day
+        description: "The timestamp when the record was recorded"
+
+      - name: timestamp_hour
+        type: categorical
+        description: "The timestamp when the record was recorded"
+      
+      - name: sensor_scan
+        type: categorical
+        description: "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)"
+
+    measures:
+      - name: glucose_value_average
+        expr: glucose_value 
+        agg: average           
+        description: "The average glucose value"
