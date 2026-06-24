@@ -10,6 +10,17 @@ services:
     environment:
       # Opcional: Ajustes de memoria para la JVM de Trino
       - JAVA_TOOL_OPTIONS=-Xmx2G
+      - DB_HOST_STRAVA=${DB_HOST_STRAVA}
+      - DB_PORT_STRAVA=${DB_PORT_STRAVA}
+      - DB_NAME_STRAVA=${DB_NAME_STRAVA}
+      - DB_USER_STRAVA=${DB_USER_STRAVA}
+      - DB_PASSWORD_STRAVA=${DB_PASSWORD_STRAVA}
+      - DB_HOST_ABBOTT=${DB_HOST_ABBOTT}
+      - DB_PORT_ABBOTT=${DB_PORT_ABBOTT}
+      - DB_NAME_ABBOTT=${DB_NAME_ABBOTT}
+      - DB_USER_ABBOTT=${DB_USER_ABBOTT}
+      - DB_PASSWORD_ABBOTT=${DB_PASSWORD_ABBOTT}
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
       interval: 10s
