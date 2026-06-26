@@ -195,52 +195,6 @@
     return div;
   }
 
-  /**
-   * Parse the assistant reply looking for a JSON block containing "vega_spec".
-   * Returns { text, vegaSpec } — text has the JSON block stripped.
-   */
-  function parseReply(rawText) {
-    // Match fenced JSON blocks  ```json ... ```  or bare {...} containing vega_spec
-    const fenceRe = /```json\s*([\s\S]*?)```/g;
-    let vegaSpec = null;
-    let text = rawText;
-
-    let match;
-    while ((match = fenceRe.exec(rawText)) !== null) {
-      try {
-        const parsed = JSON.parse(match[1]);
-        if (parsed.vega_spec) {
-          vegaSpec = parsed.vega_spec;
-          text = text.replace(match[0], "").trim();
-          break;
-        }
-        // Also handle if the whole spec is a vega-lite spec directly
-        if (parsed.$schema && parsed.$schema.includes("vega")) {
-          vegaSpec = parsed;
-          text = text.replace(match[0], "").trim();
-          break;
-        }
-      } catch (_) { /* not valid JSON, skip */ }
-    }
-
-    // Fallback: bare JSON object anywhere in text
-    if (!vegaSpec) {
-      const bareRe = /(\{[\s\S]*?"vega_spec"[\s\S]*?\})/;
-      const bareMatch = rawText.match(bareRe);
-      if (bareMatch) {
-        try {
-          const parsed = JSON.parse(bareMatch[1]);
-          if (parsed.vega_spec) {
-            vegaSpec = parsed.vega_spec;
-            text = text.replace(bareMatch[0], "").trim();
-          }
-        } catch (_) { /* skip */ }
-      }
-    }
-
-    return { text, vegaSpec };
-  }
-
   // ---------------------------------------------------------------------------
   // Send message
   // ---------------------------------------------------------------------------
@@ -279,11 +233,13 @@
       }
 
       const data = await res.json();
-      const rawReply = data.reply ?? "";
-      const { text, vegaSpec } = parseReply(rawReply);
+      const reply = data.reply ?? "";
+      // vega_spec is extracted server-side directly from the tool result —
+      // no fragile text parsing needed here.
+      const vegaSpec = data.vega_spec ?? null;
 
-      appendMessage("assistant", text || "(no text response)", vegaSpec);
-      history.push({ role: "assistant", content: rawReply });
+      appendMessage("assistant", reply || "(no text response)", vegaSpec);
+      history.push({ role: "assistant", content: reply });
 
     } catch (err) {
       chatWindow.removeChild(thinking);
