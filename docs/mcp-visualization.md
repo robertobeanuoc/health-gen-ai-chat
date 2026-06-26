@@ -22,9 +22,8 @@ This server has no environment variables. It is stateless and requires no extern
 ## Starting the server
 
 ```bash
-# Standalone
-cd src
-python -m mcp_visualization_health_gen_ai_chat.main
+# Standalone (from repo root)
+uv run python -m src.mcp_visualization_health_gen_ai_chat.main
 ```
 
 > The server is normally started automatically by the chat agent.
@@ -114,7 +113,8 @@ The UI strips this block from the text and renders the chart in-place.
 ### In Python (for testing)
 
 ```python
-import json, altair as alt, pandas as pd
+import json
+import altair as alt  # pip install altair — not a project dependency
 
 spec_str = generate_vega_chart(data, "line", "day", "avg_glucose")
 spec = json.loads(spec_str)

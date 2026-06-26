@@ -1,7 +1,8 @@
 [project]
 name = "health-gen-ai-chat"
 version = "0.1.0"
-description = "Configuración de dependencias y servidores MCP"
+description = "LLM-powered health data chat using Claude, dbt, and MCP servers"
+readme = "README.md"
 requires-python = ">=3.11, <3.12"
 dependencies = [
     "dbt-mysql",
@@ -11,7 +12,7 @@ dependencies = [
     "SQLAlchemy>=2.0.0",
     "PyMySQL>=1.1.0",
     "cryptography>=41.0.0",
-    "anthropic>=0.40.0"
+    "anthropic>=0.40.0",
 ]
 
 [build-system]
@@ -23,5 +24,15 @@ packages = [
     "src/mcp_exec_health_gen_ai_chat",
     "src/mcp_semantic_healh_gen_ai_chat",
     "src/mcp_visualization_health_gen_ai_chat",
-    "src/chat_agent"
+    "src/chat_agent",
 ]
+
+# ---------------------------------------------------------------------------
+# uv settings
+# ---------------------------------------------------------------------------
+[tool.uv]
+# Pin the Python version used when uv creates the virtual environment
+python = "3.11"
+
+[tool.uv.sources]
+# All packages come from PyPI — no local path or git overrides needed.
