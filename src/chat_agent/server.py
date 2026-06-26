@@ -20,12 +20,17 @@ Required environment variables:
 
 import json
 import os
+import re
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
 import anthropic
+from anthropic.lib.tools.mcp import async_mcp_tool
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 from pydantic import BaseModel
 
 from .main import SYSTEM_PROMPT
@@ -33,46 +38,73 @@ from .main import SYSTEM_PROMPT
 app = FastAPI(title="Health Gen AI Chat", version="0.1.0")
 
 _HERE = Path(__file__).parent
+_SRC = _HERE.parent
+
+_SERVER_DEFS = [
+    StdioServerParameters(
+        command="python",
+        args=["-m", "mcp_semantic_healh_gen_ai_chat.main"],
+        cwd=str(_SRC),
+    ),
+    StdioServerParameters(
+        command="python",
+        args=["-m", "mcp_exec_health_gen_ai_chat.main"],
+        cwd=str(_SRC),
+    ),
+    StdioServerParameters(
+        command="python",
+        args=["-m", "mcp_visualization_health_gen_ai_chat.main"],
+        cwd=str(_SRC),
+    ),
+]
 
 
-def _mcp_servers() -> list[anthropic.types.beta.BetaMCPServerStdioParams]:
-    """Build the three MCP server configs, forwarding the current environment."""
+@asynccontextmanager
+async def _mcp_tools():
+    """Start all MCP servers as stdio subprocesses and yield runnable tool wrappers."""
     env = dict(os.environ)
-    return [
-        anthropic.types.beta.BetaMCPServerStdioParams(
-            name="mcp_semantic",
+    server_defs = [
+        StdioServerParameters(
             command="python",
-            args=["-m", "src.mcp_semantic_healh_gen_ai_chat.main"],
+            args=["-m", "mcp_semantic_healh_gen_ai_chat.main"],
             env=env,
+            cwd=str(_SRC),
         ),
-        anthropic.types.beta.BetaMCPServerStdioParams(
-            name="mcp_exec",
+        StdioServerParameters(
             command="python",
-            args=["-m", "src.mcp_exec_health_gen_ai_chat.main"],
+            args=["-m", "mcp_exec_health_gen_ai_chat.main"],
             env=env,
+            cwd=str(_SRC),
         ),
-        anthropic.types.beta.BetaMCPServerStdioParams(
-            name="mcp_visualization",
+        StdioServerParameters(
             command="python",
-            args=["-m", "src.mcp_visualization_health_gen_ai_chat.main"],
+            args=["-m", "mcp_visualization_health_gen_ai_chat.main"],
             env=env,
+            cwd=str(_SRC),
         ),
     ]
+
+    async with AsyncExitStack() as stack:
+        tools = []
+        for server_def in server_defs:
+            read, write = await stack.enter_async_context(stdio_client(server_def))
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+            result = await session.list_tools()
+            for t in result.tools:
+                tools.append(async_mcp_tool(t, session))
+        yield tools
 
 
 def _extract_vega_spec(content: list) -> dict | None:
     """
     Scan all response content blocks for a generate_vega_chart tool result
     and return the parsed Vega-Lite spec, or None if no chart was produced.
-
-    The MCP beta client may surface tool results as BetaContentBlockParam
-    objects with type "tool_result", or embed them in the text. We handle
-    both the structured block form and a JSON-in-text fallback.
     """
     for block in content:
         block_type = getattr(block, "type", None)
 
-        # Structured tool_result block (MCP beta client)
+        # Structured tool_result block
         if block_type == "tool_result":
             raw = getattr(block, "content", None) or getattr(block, "output", None)
             if isinstance(raw, str):
@@ -96,8 +128,6 @@ def _extract_vega_spec(content: list) -> dict | None:
         # Text block — LLM may have echoed the spec in its reply
         if block_type == "text":
             text = getattr(block, "text", "")
-            # Look for a fenced JSON block containing a Vega-Lite spec
-            import re
             for match in re.finditer(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text):
                 try:
                     spec = json.loads(match.group(1))
@@ -124,22 +154,22 @@ async def chat(req: ChatRequest) -> JSONResponse:
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
     try:
-        response = await client.beta.messages.create(
-            model="claude-opus-4-8",
-            max_tokens=4096,
-            system=SYSTEM_PROMPT,
-            messages=req.messages,
-            mcp_servers=_mcp_servers(),
-            betas=["mcp-client-2025-04-04"],
-            thinking={"type": "adaptive"},
-        )
+        async with _mcp_tools() as tools:
+            runner = client.beta.messages.tool_runner(
+                model="claude-opus-4-8",
+                max_tokens=4096,
+                system=SYSTEM_PROMPT,
+                messages=req.messages,
+                tools=tools,
+                thinking={"type": "adaptive"},
+            )
+            message = await runner.until_done()
     except anthropic.APIError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    text_parts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
+    text_parts = [b.text for b in message.content if hasattr(b, "text") and b.type == "text"]
     reply = "\n".join(text_parts)
-
-    vega_spec = _extract_vega_spec(response.content)
+    vega_spec = _extract_vega_spec(message.content)
 
     return JSONResponse({"reply": reply, "vega_spec": vega_spec})
 
