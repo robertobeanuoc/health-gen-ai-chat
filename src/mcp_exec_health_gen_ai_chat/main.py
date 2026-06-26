@@ -7,11 +7,18 @@ from sqlalchemy.exc import SQLAlchemyError
 
 mcp = FastMCP("mysql_execution_engine")
 
-# URI with mysql dialect and pymysql driver
 MYSQL_URI = os.getenv("MYSQL_ALCHEMY_URI")
 
-# SQLAlchemy Engine initialization with idle connection validation
-engine = create_engine(MYSQL_URI, pool_pre_ping=True)
+_engine = None
+
+def _get_engine():
+    global _engine
+    if _engine is None:
+        uri = os.getenv("MYSQL_ALCHEMY_URI")
+        if not uri:
+            raise RuntimeError("MYSQL_ALCHEMY_URI environment variable is not set.")
+        _engine = create_engine(uri, pool_pre_ping=True)
+    return _engine
 
 @mcp.tool()
 def execute_read_query(sql_query: str) -> str:
@@ -27,7 +34,7 @@ def execute_read_query(sql_query: str) -> str:
         return "Security error: Query contains forbidden keywords. Only SELECT processing is allowed."
 
     try:
-        with engine.connect() as connection:
+        with _get_engine().connect() as connection:
             result = connection.execute(text(sql_query))
             
             columns = result.keys()

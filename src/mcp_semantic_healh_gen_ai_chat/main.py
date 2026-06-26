@@ -8,7 +8,7 @@ mcp = FastMCP("dbt_core_semantic_layer")
 
 # Default paths to dbt-core artifacts
 MANIFEST_PATH = os.getenv("DBT_MANIFEST_PATH", "../../dbt_health_gen_ai_chat/target/manifest.json")
-SEMANTIC_MANIFEST_PATH = os.getenv("DBT_SEMANTIC_MANIFEST_PATH", "../.. /dbt_health_gen_ai_chat/target/semantic_manifest.json")
+SEMANTIC_MANIFEST_PATH = os.getenv("DBT_SEMANTIC_MANIFEST_PATH", "../../dbt_health_gen_ai_chat/target/semantic_manifest.json")
 
 def _load_json(file_path: str) -> dict:
     if not os.path.exists(file_path):
@@ -87,6 +87,47 @@ def get_model_lineage(model_name: str) -> str:
         return json.dumps(lineage, ensure_ascii=False, indent=2)
     except Exception as e:
         return f"Error processing lineage: {str(e)}"
+
+@mcp.tool()
+def get_table_columns(model_name: str) -> str:
+    """
+    Returns the column names and data types for a specific dbt model by reading manifest.json.
+    Use this before writing SQL to know which columns are available.
+    """
+    try:
+        data = _load_json(MANIFEST_PATH)
+        nodes = data.get("nodes", {})
+
+        target_node = None
+        for node_id, node_info in nodes.items():
+            if node_info.get("name") == model_name and node_info.get("resource_type") == "model":
+                target_node = node_info
+                break
+
+        if not target_node:
+            # Also check sources
+            sources = data.get("sources", {})
+            for src_id, src_info in sources.items():
+                if src_info.get("name") == model_name:
+                    target_node = src_info
+                    break
+
+        if not target_node:
+            return f"Model or source '{model_name}' not found in manifest.json."
+
+        columns = target_node.get("columns", {})
+        result = {
+            "model": model_name,
+            "database": target_node.get("database"),
+            "schema": target_node.get("schema"),
+            "columns": [
+                {"name": col_name, "data_type": col_info.get("data_type", "unknown"), "description": col_info.get("description", "")}
+                for col_name, col_info in columns.items()
+            ]
+        }
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error reading columns: {str(e)}"
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
