@@ -45,13 +45,12 @@ MYSQL_ALCHEMY_URI="mysql+pymysql://user:pass@host/db?ssl_ca=/certs/ca.pem"
 ## Starting the server
 
 ```bash
-# Standalone
-cd src
+# Standalone (from repo root)
 MYSQL_ALCHEMY_URI="mysql+pymysql://user:pass@localhost/health_db" \
-  python -m mcp_exec_health_gen_ai_chat.main
+  uv run python -m src.mcp_exec_health_gen_ai_chat.main
 
 # Test connection manually
-python -c "
+uv run python -c "
 from sqlalchemy import create_engine, text
 import os
 e = create_engine(os.environ['MYSQL_ALCHEMY_URI'])
