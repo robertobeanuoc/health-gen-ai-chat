@@ -31,14 +31,13 @@ Both paths are resolved relative to the working directory when the server proces
 ## Starting the server
 
 ```bash
-# Standalone (for testing with an MCP inspector)
-cd src
-python -m mcp_semantic_healh_gen_ai_chat.main
+# Standalone (from repo root — for testing with an MCP inspector)
+uv run python -m src.mcp_semantic_healh_gen_ai_chat.main
 
 # With custom artifact paths
 DBT_MANIFEST_PATH=/data/dbt/target/manifest.json \
 DBT_SEMANTIC_MANIFEST_PATH=/data/dbt/target/semantic_manifest.json \
-python -m mcp_semantic_healh_gen_ai_chat.main
+uv run python -m src.mcp_semantic_healh_gen_ai_chat.main
 ```
 
 > The server is normally started automatically by the chat agent — you do not need to run it manually.
@@ -144,8 +143,8 @@ Returns column names and data types for a named dbt model or source. Searches `n
     { "name": "timestamp", "data_type": "datetime", "description": "The timestamp of the glucose measurement" },
     { "name": "glucose_value", "data_type": "double", "description": "The glucose level measurement" },
     { "name": "sensor_scan", "data_type": "tinyint", "description": "Sensor scan flag (1 = scan, 0 = manual)" },
-    { "name": "timehour", "data_type": "unknown", "description": "" },
-    { "name": "timestamp_day", "data_type": "unknown", "description": "" }
+    { "name": "timehour", "data_type": "unknown", "description": "Hour of day (0-23), derived by dbt — type not tracked in manifest" },
+    { "name": "timestamp_day", "data_type": "unknown", "description": "Date only, derived by dbt — type not tracked in manifest" }
   ]
 }
 ```
