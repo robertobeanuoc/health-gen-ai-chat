@@ -219,3 +219,6 @@ __marimo__/
 
 #trino docker 
 trino/docker/.env
+
+# DS store
+.DS_Store
