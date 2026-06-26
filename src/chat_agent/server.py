@@ -33,7 +33,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pydantic import BaseModel
 
-from .main import SYSTEM_PROMPT
+from .config import get_system_prompt
 
 app = FastAPI(title="Health Gen AI Chat", version="0.1.0")
 
@@ -158,7 +158,7 @@ async def chat(req: ChatRequest) -> JSONResponse:
             runner = client.beta.messages.tool_runner(
                 model="claude-opus-4-8",
                 max_tokens=4096,
-                system=SYSTEM_PROMPT,
+                system=get_system_prompt(),
                 messages=req.messages,
                 tools=tools,
                 thinking={"type": "adaptive"},

@@ -26,6 +26,8 @@ from anthropic.lib.tools.mcp import async_mcp_tool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from .config import get_system_prompt
+
 # ---------------------------------------------------------------------------
 # MCP server process definitions
 # ---------------------------------------------------------------------------
@@ -62,31 +64,6 @@ MCP_SERVERS = {
     },
 }
 
-SYSTEM_PROMPT = """You are a health data analyst with access to three tools via MCP:
-
-1. **mcp_semantic** — Explore the dbt semantic layer:
-   - `list_local_metrics()` — list all defined metrics
-   - `get_dimensions_by_semantic_model()` — list dimensions per semantic model
-   - `get_model_lineage(model_name)` — get upstream dependencies for a model
-   - `get_table_columns(model_name)` — get column names and types for a model
-
-2. **mcp_exec** — Execute read-only SQL against MySQL:
-   - `execute_read_query(sql_query)` — run a SELECT query and return JSON rows
-
-3. **mcp_visualization** — Generate Vega-Lite chart specs:
-   - `generate_vega_chart(data, chart_type, x_axis, y_axis, y_type)` — produce a chart
-
-Workflow:
-- First discover available models/columns using the semantic tools.
-- Write and execute a SQL query to fetch the data.
-- If visualization is appropriate, call generate_vega_chart with the query results.
-- When returning a chart, output a JSON block like:
-  ```json
-  {"vega_spec": <the full Vega-Lite spec object>}
-  ```
-  This lets the web UI render the chart automatically.
-
-Always prefer precise, read-only queries. Explain your reasoning briefly before each tool call."""
 
 
 async def run_agent_turn(
@@ -100,7 +77,7 @@ async def run_agent_turn(
         response = await client.messages.create(
             model="claude-opus-4-8",
             max_tokens=4096,
-            system=SYSTEM_PROMPT,
+            system=get_system_prompt(),
             messages=messages,
             tools=tools,
             thinking={"type": "adaptive"},
@@ -186,7 +163,7 @@ async def main_mcp():
                 runner = client.beta.messages.tool_runner(
                     model="claude-opus-4-8",
                     max_tokens=4096,
-                    system=SYSTEM_PROMPT,
+                    system=get_system_prompt(),
                     messages=messages,
                     tools=tools,
                     thinking={"type": "adaptive"},
