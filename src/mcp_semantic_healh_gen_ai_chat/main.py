@@ -7,8 +7,8 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("dbt_core_semantic_layer")
 
 # Default paths to dbt-core artifacts
-MANIFEST_PATH = os.getenv("DBT_MANIFEST_PATH", "/Users/rbean/Documents/GitHub/health-gen-ai-chat/dbt_health_gen_ai_chat/target/manifest.json")
-SEMANTIC_MANIFEST_PATH = os.getenv("DBT_SEMANTIC_MANIFEST_PATH", "/Users/rbean/Documents/GitHub/health-gen-ai-chat/dbt_health_gen_ai_chat/target/semantic_manifest.json")
+MANIFEST_PATH = os.getenv("DBT_MANIFEST_PATH", "../../dbt_health_gen_ai_chat/target/manifest.json")
+SEMANTIC_MANIFEST_PATH = os.getenv("DBT_SEMANTIC_MANIFEST_PATH", "../.. /dbt_health_gen_ai_chat/target/semantic_manifest.json")
 
 def _load_json(file_path: str) -> dict:
     if not os.path.exists(file_path):

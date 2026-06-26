@@ -17,4 +17,4 @@ SELECT
     sensor_scan
 
 
-FROM  {{ source('cgm_abbot_connector', 'glucose_register') }}
+FROM  {{ source('abbot', 'glucose_register') }}
