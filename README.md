@@ -128,9 +128,9 @@ The agent discovers your data schema, writes SQL, executes it, and returns resul
 
 ## Web UI
 
-`src/chat_agent/index.html` is a standalone dark-theme chat interface. It sends requests to `POST /api/chat` and renders Vega-Lite charts inline.
+`src/chat_agent/index.html` is a standalone dark-theme chat interface. It sends requests to `POST /api/chat` and renders Vega-Lite charts inline. The backend server (`src/chat_agent/server.py`) is included in the repo.
 
-Install the web server extras and start:
+Install the web server extras (only needed once) and start:
 
 ```bash
 uv add fastapi uvicorn
@@ -184,6 +184,7 @@ health-gen-ai-chat/
 │   │   └── main.py
 │   └── chat_agent/                           # LLM agent + web UI
 │       ├── main.py                           # terminal chat agent
+│       ├── server.py                         # FastAPI HTTP server for the web UI
 │       └── index.html                        # browser chat UI
 └── docs/
     ├── how-to-use.md                         # end-to-end setup guide

@@ -137,73 +137,13 @@ The web UI (`src/chat_agent/index.html`) is a standalone HTML file that talks to
 
 ### Quick backend with FastAPI
 
-Install FastAPI and Uvicorn into the project environment:
+Install FastAPI and Uvicorn into the project environment (only needed once):
 
 ```bash
 uv add fastapi uvicorn
 ```
 
-Create `src/chat_agent/server.py`:
-
-```python
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-import os, anthropic
-from pathlib import Path
-
-app = FastAPI()
-
-SRC = Path(__file__).parent.parent
-
-SYSTEM_PROMPT = """You are a health data analyst with access to three MCP tools.
-Use mcp_semantic to discover available models and columns, mcp_exec to run
-read-only SQL, and mcp_visualization to generate Vega-Lite charts.
-When returning a chart wrap the spec as: {"vega_spec": <spec>}"""
-
-class ChatRequest(BaseModel):
-    messages: list[dict]
-
-@app.post("/api/chat")
-async def chat(req: ChatRequest):
-    client = anthropic.AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    mcp_servers = [
-        anthropic.types.beta.BetaMCPServerStdioParams(
-            name="mcp_semantic",
-            command="python",
-            args=["-m", "mcp_semantic_healh_gen_ai_chat.main"],
-            env=dict(os.environ),
-        ),
-        anthropic.types.beta.BetaMCPServerStdioParams(
-            name="mcp_exec",
-            command="python",
-            args=["-m", "mcp_exec_health_gen_ai_chat.main"],
-            env=dict(os.environ),
-        ),
-        anthropic.types.beta.BetaMCPServerStdioParams(
-            name="mcp_visualization",
-            command="python",
-            args=["-m", "mcp_visualization_health_gen_ai_chat.main"],
-            env=dict(os.environ),
-        ),
-    ]
-    response = await client.beta.messages.create(
-        model="claude-opus-4-8",
-        max_tokens=4096,
-        system=SYSTEM_PROMPT,
-        messages=req.messages,
-        mcp_servers=mcp_servers,
-        betas=["mcp-client-2025-04-04"],
-        thinking={"type": "adaptive"},
-    )
-    text = "\n".join(b.text for b in response.content if hasattr(b, "text"))
-    return JSONResponse({"reply": text})
-
-app.mount("/", StaticFiles(directory=str(Path(__file__).parent), html=True))
-```
-
-Start the server:
+`src/chat_agent/server.py` is already included in the repo. Start it with:
 
 ```bash
 uv run uvicorn src.chat_agent.server:app --reload --port 8000
@@ -334,6 +274,7 @@ health-gen-ai-chat/
 │   │   └── main.py
 │   └── chat_agent/                         # LLM agent + web UI
 │       ├── main.py                         # terminal chat agent
+│       ├── server.py                       # FastAPI HTTP server for the web UI
 │       └── index.html                      # browser chat UI
 └── docs/
     ├── how-to-use.md                       # this file
