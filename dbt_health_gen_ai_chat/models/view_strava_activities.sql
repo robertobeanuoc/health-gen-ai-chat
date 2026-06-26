@@ -8,4 +8,4 @@ config(
 
 SELECT 
 *
-FROM  {{ source('straba_to_db', 'strava_activities') }}
+FROM  {{ source('strava', 'strava_activities') }}
