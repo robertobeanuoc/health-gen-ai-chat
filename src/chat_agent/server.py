@@ -3,8 +3,12 @@
 FastAPI HTTP wrapper around the Health Gen AI Chat agent.
 
 Serves:
-  POST /api/chat  — receives {messages: [...]} and returns {reply: "..."}
+  POST /api/chat  — receives {messages: [...]} and returns {reply, vega_spec}
   GET  /          — serves index.html and static assets from this directory
+
+The vega_spec field is populated directly from the generate_vega_chart tool
+result, not parsed from the assistant's text. This guarantees charts always
+render regardless of how the LLM phrases its response.
 
 Start:
     uv run uvicorn src.chat_agent.server:app --reload --port 8000
@@ -14,6 +18,7 @@ Required environment variables:
     MYSQL_ALCHEMY_URI    — SQLAlchemy connection URL for MySQL
 """
 
+import json
 import os
 from pathlib import Path
 
@@ -28,7 +33,6 @@ from .main import SYSTEM_PROMPT
 app = FastAPI(title="Health Gen AI Chat", version="0.1.0")
 
 _HERE = Path(__file__).parent
-_SRC = _HERE.parent
 
 
 def _mcp_servers() -> list[anthropic.types.beta.BetaMCPServerStdioParams]:
@@ -56,6 +60,57 @@ def _mcp_servers() -> list[anthropic.types.beta.BetaMCPServerStdioParams]:
     ]
 
 
+def _extract_vega_spec(content: list) -> dict | None:
+    """
+    Scan all response content blocks for a generate_vega_chart tool result
+    and return the parsed Vega-Lite spec, or None if no chart was produced.
+
+    The MCP beta client may surface tool results as BetaContentBlockParam
+    objects with type "tool_result", or embed them in the text. We handle
+    both the structured block form and a JSON-in-text fallback.
+    """
+    for block in content:
+        block_type = getattr(block, "type", None)
+
+        # Structured tool_result block (MCP beta client)
+        if block_type == "tool_result":
+            raw = getattr(block, "content", None) or getattr(block, "output", None)
+            if isinstance(raw, str):
+                try:
+                    spec = json.loads(raw)
+                    if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
+                        return spec
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            elif isinstance(raw, list):
+                for item in raw:
+                    text = getattr(item, "text", None) or (item.get("text") if isinstance(item, dict) else None)
+                    if text:
+                        try:
+                            spec = json.loads(text)
+                            if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
+                                return spec
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
+        # Text block — LLM may have echoed the spec in its reply
+        if block_type == "text":
+            text = getattr(block, "text", "")
+            # Look for a fenced JSON block containing a Vega-Lite spec
+            import re
+            for match in re.finditer(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text):
+                try:
+                    spec = json.loads(match.group(1))
+                    if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
+                        return spec
+                    if isinstance(spec, dict) and "vega_spec" in spec:
+                        return spec["vega_spec"]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+    return None
+
+
 class ChatRequest(BaseModel):
     messages: list[dict]
 
@@ -81,8 +136,12 @@ async def chat(req: ChatRequest) -> JSONResponse:
     except anthropic.APIError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    text = "\n".join(b.text for b in response.content if hasattr(b, "text"))
-    return JSONResponse({"reply": text})
+    text_parts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
+    reply = "\n".join(text_parts)
+
+    vega_spec = _extract_vega_spec(response.content)
+
+    return JSONResponse({"reply": reply, "vega_spec": vega_spec})
 
 
 # Serve the web UI — must be mounted last so /api/chat takes priority
