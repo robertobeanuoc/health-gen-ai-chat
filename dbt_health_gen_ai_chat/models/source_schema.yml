@@ -11,7 +11,7 @@ models:
           - not_null
           - unique
 sources:
-  - name: cgm_abbot_connector
+  - name: abbot
     database: cgm_abbot_connector
     tables:
       - name: glucose_register
@@ -31,7 +31,7 @@ sources:
             description: "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)"
             type: tinyint
             
-  - name: straba_to_db
+  - name: straba
     database: "straba-to-db"
     tables:
       - name: strava_activities
