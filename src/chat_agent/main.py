@@ -22,6 +22,9 @@ from pathlib import Path
 
 import anthropic
 from anthropic import AsyncAnthropic
+from anthropic.lib.tools.mcp import async_mcp_tool
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 # ---------------------------------------------------------------------------
 # MCP server process definitions
@@ -141,56 +144,65 @@ async def main_mcp():
 
     print("Health Gen AI Chat — type 'quit' to exit.\n")
 
-    # Build MCP server configs for the SDK
-    mcp_server_configs = []
-    for name, cfg in MCP_SERVERS.items():
-        mcp_server_configs.append(
-            anthropic.types.beta.BetaMCPServerStdioParams(
-                name=name,
+    messages: list[dict] = []
+
+    from contextlib import AsyncExitStack
+    async with AsyncExitStack() as stack:
+        sessions = []
+        for cfg in MCP_SERVERS.values():
+            params = StdioServerParameters(
                 command=cfg["command"],
                 args=cfg["args"],
                 env=cfg.get("env"),
+                cwd=cfg.get("cwd"),
             )
-        )
+            read, write = await stack.enter_async_context(stdio_client(params))
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+            sessions.append(session)
 
-    messages: list[dict] = []
+        tools = []
+        for session in sessions:
+            result = await session.list_tools()
+            for t in result.tools:
+                tools.append(async_mcp_tool(t, session))
 
-    while True:
-        try:
-            user_input = input("You: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nGoodbye!")
-            break
+        while True:
+            try:
+                user_input = input("You: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nGoodbye!")
+                break
 
-        if user_input.lower() in ("quit", "exit", "q"):
-            print("Goodbye!")
-            break
-        if not user_input:
-            continue
+            if user_input.lower() in ("quit", "exit", "q"):
+                print("Goodbye!")
+                break
+            if not user_input:
+                continue
 
-        messages.append({"role": "user", "content": user_input})
+            messages.append({"role": "user", "content": user_input})
 
-        try:
-            response = await client.beta.messages.create(
-                model="claude-opus-4-8",
-                max_tokens=4096,
-                system=SYSTEM_PROMPT,
-                messages=messages,
-                mcp_servers=mcp_server_configs,
-                betas=["mcp-client-2025-04-04"],
-                thinking={"type": "adaptive"},
-            )
+            try:
+                runner = client.beta.messages.tool_runner(
+                    model="claude-opus-4-8",
+                    max_tokens=4096,
+                    system=SYSTEM_PROMPT,
+                    messages=messages,
+                    tools=tools,
+                    thinking={"type": "adaptive"},
+                )
+                response = await runner.until_done()
 
-            assistant_content = response.content
-            messages.append({"role": "assistant", "content": assistant_content})
+                assistant_content = response.content
+                messages.append({"role": "assistant", "content": assistant_content})
 
-            text_parts = [b.text for b in assistant_content if hasattr(b, "text")]
-            reply = "\n".join(text_parts)
-            print(f"\nAssistant: {reply}\n")
+                text_parts = [b.text for b in assistant_content if hasattr(b, "text")]
+                reply = "\n".join(text_parts)
+                print(f"\nAssistant: {reply}\n")
 
-        except anthropic.APIError as e:
-            print(f"API error: {e}", file=sys.stderr)
-            messages.pop()  # Remove the failed user turn
+            except anthropic.APIError as e:
+                print(f"API error: {e}", file=sys.stderr)
+                messages.pop()
 
 
 if __name__ == "__main__":
