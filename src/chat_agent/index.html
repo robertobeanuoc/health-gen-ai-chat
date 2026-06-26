@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Health Gen AI Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0f1117;
+      color: #e1e4e8;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #30363d;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #161b22;
+    }
+
+    #chat-window {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 760px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user {
+      background: #1f6feb33;
+      border: 1px solid #1f6feb66;
+      align-self: flex-end;
+    }
+
+    .message.assistant {
+      background: #21262d;
+      border: 1px solid #30363d;
+      align-self: flex-start;
+    }
+
+    .message.assistant .chart-container {
+      margin-top: 14px;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .message.error {
+      background: #3d1f1f;
+      border: 1px solid #6e3030;
+      align-self: flex-start;
+      color: #f97583;
+    }
+
+    .thinking {
+      font-style: italic;
+      color: #8b949e;
+      font-size: 0.85rem;
+      align-self: flex-start;
+    }
+
+    #input-area {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid #30363d;
+      background: #161b22;
+    }
+
+    #user-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #e1e4e8;
+      font-size: 0.95rem;
+      resize: none;
+      min-height: 44px;
+      max-height: 180px;
+      outline: none;
+    }
+
+    #user-input:focus {
+      border-color: #1f6feb;
+    }
+
+    #send-btn {
+      padding: 10px 20px;
+      background: #1f6feb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    #send-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #send-btn:hover:not(:disabled) {
+      background: #388bfd;
+    }
+
+    code {
+      background: #0d1117;
+      border-radius: 4px;
+      padding: 2px 5px;
+      font-size: 0.88em;
+    }
+  </style>
+</head>
+<body>
+
+<header>🩺 Health Gen AI Chat</header>
+
+<div id="chat-window"></div>
+
+<div id="input-area">
+  <textarea
+    id="user-input"
+    placeholder="Ask about your health data… (Shift+Enter for newline)"
+    rows="1"
+  ></textarea>
+  <button id="send-btn">Send</button>
+</div>
+
+<script>
+  // ---------------------------------------------------------------------------
+  // Configuration — set to your backend API endpoint
+  // ---------------------------------------------------------------------------
+  const API_URL = "/api/chat";
+
+  const chatWindow = document.getElementById("chat-window");
+  const userInput  = document.getElementById("user-input");
+  const sendBtn    = document.getElementById("send-btn");
+
+  const history = []; // [{role, content}]
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  function scrollBottom() {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function appendMessage(role, text, vegaSpec = null) {
+    const div = document.createElement("div");
+    div.className = `message ${role}`;
+    div.textContent = text;
+
+    if (vegaSpec) {
+      const chartDiv = document.createElement("div");
+      chartDiv.className = "chart-container";
+      chartDiv.style.width = "100%";
+      chartDiv.style.minHeight = "300px";
+      div.appendChild(chartDiv);
+      // Render asynchronously after DOM insertion
+      requestAnimationFrame(() => {
+        vegaEmbed(chartDiv, vegaSpec, { actions: false, theme: "quartz" })
+          .catch(err => {
+            chartDiv.textContent = `Chart render error: ${err.message}`;
+            chartDiv.style.color = "#f97583";
+            chartDiv.style.padding = "8px";
+          });
+      });
+    }
+
+    chatWindow.appendChild(div);
+    scrollBottom();
+    return div;
+  }
+
+  /**
+   * Parse the assistant reply looking for a JSON block containing "vega_spec".
+   * Returns { text, vegaSpec } — text has the JSON block stripped.
+   */
+  function parseReply(rawText) {
+    // Match fenced JSON blocks  ```json ... ```  or bare {...} containing vega_spec
+    const fenceRe = /```json\s*([\s\S]*?)```/g;
+    let vegaSpec = null;
+    let text = rawText;
+
+    let match;
+    while ((match = fenceRe.exec(rawText)) !== null) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (parsed.vega_spec) {
+          vegaSpec = parsed.vega_spec;
+          text = text.replace(match[0], "").trim();
+          break;
+        }
+        // Also handle if the whole spec is a vega-lite spec directly
+        if (parsed.$schema && parsed.$schema.includes("vega")) {
+          vegaSpec = parsed;
+          text = text.replace(match[0], "").trim();
+          break;
+        }
+      } catch (_) { /* not valid JSON, skip */ }
+    }
+
+    // Fallback: bare JSON object anywhere in text
+    if (!vegaSpec) {
+      const bareRe = /(\{[\s\S]*?"vega_spec"[\s\S]*?\})/;
+      const bareMatch = rawText.match(bareRe);
+      if (bareMatch) {
+        try {
+          const parsed = JSON.parse(bareMatch[1]);
+          if (parsed.vega_spec) {
+            vegaSpec = parsed.vega_spec;
+            text = text.replace(bareMatch[0], "").trim();
+          }
+        } catch (_) { /* skip */ }
+      }
+    }
+
+    return { text, vegaSpec };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Send message
+  // ---------------------------------------------------------------------------
+
+  async function sendMessage() {
+    const content = userInput.value.trim();
+    if (!content) return;
+
+    userInput.value = "";
+    userInput.style.height = "auto";
+    sendBtn.disabled = true;
+
+    appendMessage("user", content);
+    history.push({ role: "user", content });
+
+    const thinking = document.createElement("div");
+    thinking.className = "thinking";
+    thinking.textContent = "Thinking…";
+    chatWindow.appendChild(thinking);
+    scrollBottom();
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+
+      chatWindow.removeChild(thinking);
+
+      if (!res.ok) {
+        const err = await res.text();
+        appendMessage("error", `Error ${res.status}: ${err}`);
+        history.pop();
+        return;
+      }
+
+      const data = await res.json();
+      const rawReply = data.reply ?? "";
+      const { text, vegaSpec } = parseReply(rawReply);
+
+      appendMessage("assistant", text || "(no text response)", vegaSpec);
+      history.push({ role: "assistant", content: rawReply });
+
+    } catch (err) {
+      chatWindow.removeChild(thinking);
+      appendMessage("error", `Network error: ${err.message}`);
+      history.pop();
+    } finally {
+      sendBtn.disabled = false;
+      userInput.focus();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Event listeners
+  // ---------------------------------------------------------------------------
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  userInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Auto-resize textarea
+  userInput.addEventListener("input", () => {
+    userInput.style.height = "auto";
+    userInput.style.height = Math.min(userInput.scrollHeight, 180) + "px";
+  });
+</script>
+
+</body>
+</html>

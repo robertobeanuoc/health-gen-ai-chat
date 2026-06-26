@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#trino docker 
+trino/docker/.env
+
+# DS store
+.DS_Store

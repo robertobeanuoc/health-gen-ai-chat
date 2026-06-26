@@ -1,6 +1,8 @@
 {{
     config(
         materialized='view',
+        on_schema_change='sync_all_columns',
+        description='This view contains glucose register data.'
     )
 }}
 SELECT 
@@ -15,4 +17,4 @@ SELECT
     sensor_scan
 
 
-FROM  {{ source('cgm_abbot_connector', 'glucose_register') }}
+FROM  {{ source('abbot', 'glucose_register') }}
