@@ -13,6 +13,8 @@ dependencies = [
     "PyMySQL>=1.1.0",
     "cryptography>=41.0.0",
     "anthropic>=0.40.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
 ]
 
 [build-system]
@@ -31,8 +33,6 @@ packages = [
 # uv settings
 # ---------------------------------------------------------------------------
 [tool.uv]
-# Pin the Python version used when uv creates the virtual environment
-python = "3.11"
 
 [tool.uv.sources]
 # All packages come from PyPI — no local path or git overrides needed.
