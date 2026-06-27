@@ -80,4 +80,13 @@ sources:
           - name: weight_grams
             description: "The weight of the food in grams"
             type: int
+          - name: carbohydrate_percentage
+            description: "The percentage of carbohydrates in the food"
+            type: decimal
+          - name: carbohydrate_weight_grams
+            description: "The weight of carbohydrates in grams"
+            type: decimal
+          - name: absorption_type
+            description: "The type of absorption (e.g., fast, slow)"
+            type: string
           
