@@ -47,3 +47,18 @@ semantic_models:
         expr: distance_m
         agg: sum
         description: "The total distance covered during the activity (in meters)"
+  - name: semantic_food
+    description: "A semantic model for the food table"
+    model: ref('view_food_register')
+    entities:
+      - name: uuid
+        type: primary
+    dimensions:
+      - name: food_type
+        type: categorical
+        description: "The type of the food item"
+    measures:
+      - name: weight_grams_sum
+        expr: weight_grams
+        agg: sum
+        description: "The total weight of the food items consumed (in grams)"
