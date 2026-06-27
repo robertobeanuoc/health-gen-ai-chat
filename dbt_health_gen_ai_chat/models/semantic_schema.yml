@@ -33,17 +33,58 @@ semantic_models:
   - name: semantic_strava_activities
     description: "A semantic model for the strava_activities table"
     model: ref('view_strava_activities')
+
     entities:
       - name: activity_id
         type: primary
+
     dimensions:
       - name: start_date_local
         type: time
         type_params:
           time_granularity: day
         description: "The local start date and time of the activity"
+
     measures:
       - name: distance_m_sum
         expr: distance_m
         agg: sum
         description: "The total distance covered during the activity (in meters)"
+
+
+  - name: semantic_food
+    description: "A semantic model for the food table"
+    model: ref('view_food_register')
+    entities:
+      - name: uuid
+        type: primary
+
+    dimensions:
+      - name: food_type
+        type: categorical
+        description: "The type of the food item"
+      - name: absorption_type
+        type: categorical
+        description: "The type of absorption (e.g., fast, slow)"
+      - name: glycemic_index
+        type: categorical
+        description: "The glycemic index of the food item"
+
+    measures:
+      - name: weight_grams_sum
+        expr: weight_grams
+        agg: sum
+        description: "The total weight of the food items consumed (in grams)"
+      - name: weight_grams_average
+        expr: weight_grams
+        agg: average
+        description: "The average weight of the food items consumed (in grams)"
+      - name: carbohydrate_weight_grams_sum
+        expr: carbohydrate_weight_grams
+        agg: sum
+        description: "The total weight of carbohydrates consumed (in grams)"
+      - name: carbohydrate_weight_grams_average
+        expr: carbohydrate_weight_grams
+        agg: average
+        description: "The average weight of carbohydrates consumed (in grams)"
+
