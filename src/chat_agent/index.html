@@ -16,8 +16,106 @@
       background: #0f1117;
       color: #e1e4e8;
       display: flex;
-      flex-direction: column;
       height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #sidebar-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    #new-chat-btn {
+      padding: 8px 12px;
+      background: #1f6feb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    #new-chat-btn:hover { background: #388bfd; }
+
+    #session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: #c9d1d9;
+      gap: 6px;
+    }
+
+    .session-item:hover { background: #21262d; }
+
+    .session-item.active {
+      background: #1f6feb22;
+      color: #fff;
+    }
+
+    .session-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .session-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: #6e7681;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 4px;
+      border-radius: 4px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .session-item:hover .session-delete { opacity: 1; }
+    .session-delete:hover { color: #f97583; background: #3d1f1f; }
+
+    /* ── Main area ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     header {
@@ -26,6 +124,15 @@
       font-size: 1rem;
       font-weight: 600;
       background: #161b22;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #session-name {
+      color: #8b949e;
+      font-size: 0.85rem;
+      font-weight: 400;
     }
 
     #chat-window {
@@ -36,6 +143,15 @@
       flex-direction: column;
       gap: 16px;
     }
+
+    #empty-state {
+      margin: auto;
+      text-align: center;
+      color: #484f58;
+    }
+
+    #empty-state h2 { font-size: 1.1rem; margin-bottom: 6px; }
+    #empty-state p  { font-size: 0.875rem; }
 
     .message {
       max-width: 760px;
@@ -101,9 +217,8 @@
       outline: none;
     }
 
-    #user-input:focus {
-      border-color: #1f6feb;
-    }
+    #user-input:focus { border-color: #1f6feb; }
+    #user-input:disabled { opacity: 0.5; }
 
     #send-btn {
       padding: 10px 20px;
@@ -116,14 +231,8 @@
       align-self: flex-end;
     }
 
-    #send-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    #send-btn:hover:not(:disabled) {
-      background: #388bfd;
-    }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #send-btn:hover:not(:disabled) { background: #388bfd; }
 
     code {
       background: #0d1117;
@@ -135,33 +244,127 @@
 </head>
 <body>
 
-<header>🩺 Health Gen AI Chat</header>
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div id="sidebar-header">
+    <span id="sidebar-title">Sessions</span>
+    <button id="new-chat-btn">+ New chat</button>
+  </div>
+  <div id="session-list"></div>
+</aside>
 
-<div id="chat-window"></div>
+<!-- Main -->
+<div id="main">
+  <header>
+    🩺 Health Gen AI Chat
+    <span id="session-name"></span>
+  </header>
 
-<div id="input-area">
-  <textarea
-    id="user-input"
-    placeholder="Ask about your health data… (Shift+Enter for newline)"
-    rows="1"
-  ></textarea>
-  <button id="send-btn">Send</button>
+  <div id="chat-window">
+    <div id="empty-state">
+      <h2>No session selected</h2>
+      <p>Create a new chat or pick one from the sidebar.</p>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea
+      id="user-input"
+      placeholder="Ask about your health data… (Shift+Enter for newline)"
+      rows="1"
+      disabled
+    ></textarea>
+    <button id="send-btn" disabled>Send</button>
+  </div>
 </div>
 
 <script>
   // ---------------------------------------------------------------------------
-  // Configuration — set to your backend API endpoint
+  // State
   // ---------------------------------------------------------------------------
-  const API_URL = "/api/chat";
+  let currentSessionId = null;
 
-  const chatWindow = document.getElementById("chat-window");
-  const userInput  = document.getElementById("user-input");
-  const sendBtn    = document.getElementById("send-btn");
-
-  const history = []; // [{role, content}]
+  const sessionList  = document.getElementById("session-list");
+  const chatWindow   = document.getElementById("chat-window");
+  const emptyState   = document.getElementById("empty-state");
+  const userInput    = document.getElementById("user-input");
+  const sendBtn      = document.getElementById("send-btn");
+  const sessionName  = document.getElementById("session-name");
 
   // ---------------------------------------------------------------------------
-  // Helpers
+  // Session API
+  // ---------------------------------------------------------------------------
+
+  async function apiListSessions() {
+    const res = await fetch("/api/sessions");
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async function apiCreateSession() {
+    const res = await fetch("/api/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async function apiGetSession(id) {
+    const res = await fetch(`/api/sessions/${id}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async function apiDeleteSession(id) {
+    const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(await res.text());
+  }
+
+  async function apiChat(sessionId, content) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, content }),
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+    return res.json();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sidebar rendering
+  // ---------------------------------------------------------------------------
+
+  async function refreshSidebar() {
+    const sessions = await apiListSessions().catch(() => []);
+    sessionList.innerHTML = "";
+    for (const s of sessions) {
+      const item = document.createElement("div");
+      item.className = "session-item" + (s.id === currentSessionId ? " active" : "");
+      item.dataset.id = s.id;
+
+      const title = document.createElement("span");
+      title.className = "session-title";
+      title.textContent = s.title || "New chat";
+
+      const del = document.createElement("button");
+      del.className = "session-delete";
+      del.title = "Delete";
+      del.textContent = "✕";
+      del.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete "${title.textContent}"?`)) return;
+        await apiDeleteSession(s.id).catch(console.error);
+        if (currentSessionId === s.id) clearChat();
+        await refreshSidebar();
+      });
+
+      item.appendChild(title);
+      item.appendChild(del);
+      item.addEventListener("click", () => loadSession(s.id));
+      sessionList.appendChild(item);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chat rendering
   // ---------------------------------------------------------------------------
 
   function scrollBottom() {
@@ -169,6 +372,7 @@
   }
 
   function appendMessage(role, text, vegaSpec = null) {
+    emptyState.style.display = "none";
     const div = document.createElement("div");
     div.className = `message ${role}`;
     div.textContent = text;
@@ -179,14 +383,12 @@
       chartDiv.style.width = "100%";
       chartDiv.style.minHeight = "300px";
       div.appendChild(chartDiv);
-      // Render asynchronously after DOM insertion
       requestAnimationFrame(() => {
-        vegaEmbed(chartDiv, vegaSpec, { actions: false, theme: "quartz" })
-          .catch(err => {
-            chartDiv.textContent = `Chart render error: ${err.message}`;
-            chartDiv.style.color = "#f97583";
-            chartDiv.style.padding = "8px";
-          });
+        vegaEmbed(chartDiv, vegaSpec, { actions: false, theme: "quartz" }).catch(err => {
+          chartDiv.textContent = `Chart render error: ${err.message}`;
+          chartDiv.style.color = "#f97583";
+          chartDiv.style.padding = "8px";
+        });
       });
     }
 
@@ -195,20 +397,56 @@
     return div;
   }
 
+  function clearChat() {
+    currentSessionId = null;
+    sessionName.textContent = "";
+    chatWindow.innerHTML = "";
+    chatWindow.appendChild(emptyState);
+    emptyState.style.display = "";
+    userInput.disabled = true;
+    sendBtn.disabled = true;
+  }
+
+  async function loadSession(id) {
+    const data = await apiGetSession(id).catch(err => { console.error(err); return null; });
+    if (!data) return;
+
+    currentSessionId = id;
+    sessionName.textContent = data.title || "New chat";
+    chatWindow.innerHTML = "";
+    emptyState.style.display = "none";
+
+    for (const msg of data.messages) {
+      appendMessage(msg.role, msg.content, msg.vega_spec ?? null);
+    }
+
+    if (data.messages.length === 0) {
+      chatWindow.appendChild(emptyState);
+      emptyState.style.display = "";
+    }
+
+    userInput.disabled = false;
+    sendBtn.disabled = false;
+    userInput.focus();
+
+    await refreshSidebar();
+    scrollBottom();
+  }
+
   // ---------------------------------------------------------------------------
   // Send message
   // ---------------------------------------------------------------------------
 
   async function sendMessage() {
     const content = userInput.value.trim();
-    if (!content) return;
+    if (!content || !currentSessionId) return;
 
     userInput.value = "";
     userInput.style.height = "auto";
     sendBtn.disabled = true;
+    userInput.disabled = true;
 
     appendMessage("user", content);
-    history.push({ role: "user", content });
 
     const thinking = document.createElement("div");
     thinking.className = "thinking";
@@ -217,36 +455,22 @@
     scrollBottom();
 
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
-      });
-
+      const data = await apiChat(currentSessionId, content);
       chatWindow.removeChild(thinking);
 
-      if (!res.ok) {
-        const err = await res.text();
-        appendMessage("error", `Error ${res.status}: ${err}`);
-        history.pop();
-        return;
-      }
-
-      const data = await res.json();
       const reply = data.reply ?? "";
-      // vega_spec is extracted server-side directly from the tool result —
-      // no fragile text parsing needed here.
       const vegaSpec = data.vega_spec ?? null;
-
       appendMessage("assistant", reply || "(no text response)", vegaSpec);
-      history.push({ role: "assistant", content: reply });
+
+      // Update sidebar title if this was the first message
+      await refreshSidebar();
 
     } catch (err) {
       chatWindow.removeChild(thinking);
-      appendMessage("error", `Network error: ${err.message}`);
-      history.pop();
+      appendMessage("error", `Error: ${err.message}`);
     } finally {
       sendBtn.disabled = false;
+      userInput.disabled = false;
       userInput.focus();
     }
   }
@@ -254,6 +478,13 @@
   // ---------------------------------------------------------------------------
   // Event listeners
   // ---------------------------------------------------------------------------
+
+  document.getElementById("new-chat-btn").addEventListener("click", async () => {
+    const session = await apiCreateSession().catch(err => { console.error(err); return null; });
+    if (!session) return;
+    await refreshSidebar();
+    await loadSession(session.id);
+  });
 
   sendBtn.addEventListener("click", sendMessage);
 
@@ -264,11 +495,16 @@
     }
   });
 
-  // Auto-resize textarea
   userInput.addEventListener("input", () => {
     userInput.style.height = "auto";
     userInput.style.height = Math.min(userInput.scrollHeight, 180) + "px";
   });
+
+  // ---------------------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------------------
+
+  refreshSidebar();
 </script>
 
 </body>
