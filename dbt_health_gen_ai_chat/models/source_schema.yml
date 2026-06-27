@@ -57,3 +57,36 @@ sources:
           - name: total_elevation_gain_m
             description: "The total elevation gain during the activity (in meters)"
             type: double
+  - name: food
+    schema: food_recognition
+    tables:
+      - name: food_register
+        columns:
+          - name: uuid  
+            description: "The unique identifier for each record"
+            type: string
+          - name: file_uid
+            description: "The unique identifier for the file"
+            type: string
+          - name: created_at
+            description: "The timestamp when the record was created"
+            type: datetime
+          - name: food_type
+            description: "The type of food"
+            type: string
+          - name: glycemic_index
+            description: "The glycemic index of the food"
+            type: int
+          - name: weight_grams
+            description: "The weight of the food in grams"
+            type: int
+          - name: carbohydrate_percentage
+            description: "The percentage of carbohydrates in the food"
+            type: decimal
+          - name: carbohydrate_weight_grams
+            description: "The weight of carbohydrates in grams"
+            type: decimal
+          - name: absorption_type
+            description: "The type of absorption (e.g., fast, slow)"
+            type: string
+          
