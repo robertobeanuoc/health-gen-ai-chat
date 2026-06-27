@@ -3,12 +3,13 @@
 FastAPI HTTP wrapper around the Health Gen AI Chat agent.
 
 Serves:
-  POST /api/chat  — receives {messages: [...]} and returns {reply, vega_spec}
-  GET  /          — serves index.html and static assets from this directory
-
-The vega_spec field is populated directly from the generate_vega_chart tool
-result, not parsed from the assistant's text. This guarantees charts always
-render regardless of how the LLM phrases its response.
+  POST /api/sessions          — create a new chat session
+  GET  /api/sessions          — list all sessions
+  GET  /api/sessions/{id}     — get session with full message history
+  PATCH /api/sessions/{id}    — rename a session
+  DELETE /api/sessions/{id}   — delete a session and its messages
+  POST /api/chat              — send a message within a session
+  GET  /                      — serves index.html and static assets
 
 Start:
     uv run uvicorn src.chat_agent.server:app --reload --port 8000
@@ -30,19 +31,44 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 import anthropic
 from anthropic.lib.tools.mcp import async_mcp_tool
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from pydantic import BaseModel
 
 from .config import get_system_prompt
-
-app = FastAPI(title="Health Gen AI Chat", version="0.1.0")
+from .crud import (
+    add_message,
+    create_session,
+    delete_session,
+    get_session,
+    get_session_history,
+    list_sessions,
+    update_session_title,
+)
+from .database import get_db, init_db
+from .schemas import (
+    ChatRequest,
+    ChatResponse,
+    CreateSessionRequest,
+    SessionDetail,
+    SessionOut,
+    SessionSummary,
+    UpdateSessionRequest,
+)
 
 _HERE = Path(__file__).parent
 _SRC = _HERE.parent
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
+app = FastAPI(title="Health Gen AI Chat", version="0.1.0", lifespan=lifespan)
 
 _SERVER_DEFS = [
     StdioServerParameters(
@@ -108,7 +134,6 @@ def _extract_vega_spec(content: list) -> dict | None:
     for block in content:
         block_type = getattr(block, "type", None)
 
-        # Structured tool_result block
         if block_type == "tool_result":
             raw = getattr(block, "content", None) or getattr(block, "output", None)
             if isinstance(raw, str):
@@ -129,7 +154,6 @@ def _extract_vega_spec(content: list) -> dict | None:
                         except (json.JSONDecodeError, TypeError):
                             pass
 
-        # Text block — LLM may have echoed the spec in its reply
         if block_type == "text":
             text = getattr(block, "text", "")
             for match in re.finditer(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text):
@@ -145,15 +169,71 @@ def _extract_vega_spec(content: list) -> dict | None:
     return None
 
 
-class ChatRequest(BaseModel):
-    messages: list[dict]
+# ---------------------------------------------------------------------------
+# Session endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions", response_model=SessionOut, status_code=201)
+async def create_new_session(req: CreateSessionRequest, db=Depends(get_db)):
+    session = await create_session(db, title=req.title)
+    return session
 
 
-@app.post("/api/chat")
-async def chat(req: ChatRequest) -> JSONResponse:
+@app.get("/api/sessions", response_model=list[SessionSummary])
+async def get_sessions(db=Depends(get_db)):
+    rows = await list_sessions(db)
+    return [
+        SessionSummary(
+            id=row.Session.id,
+            title=row.Session.title,
+            created_at=row.Session.created_at,
+            updated_at=row.Session.updated_at,
+            message_count=row.message_count,
+        )
+        for row in rows
+    ]
+
+
+@app.get("/api/sessions/{session_id}", response_model=SessionDetail)
+async def get_session_detail(session_id: str, db=Depends(get_db)):
+    session = await get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return session
+
+
+@app.patch("/api/sessions/{session_id}", response_model=SessionOut)
+async def rename_session(session_id: str, req: UpdateSessionRequest, db=Depends(get_db)):
+    session = await update_session_title(db, session_id, req.title)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return session
+
+
+@app.delete("/api/sessions/{session_id}", status_code=204)
+async def remove_session(session_id: str, db=Depends(get_db)):
+    deleted = await delete_session(db, session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return Response(status_code=204)
+
+
+# ---------------------------------------------------------------------------
+# Chat endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(req: ChatRequest, db=Depends(get_db)):
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not set.")
+
+    session = await get_session(db, req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    history = await get_session_history(db, req.session_id)
+    history.append({"role": "user", "content": req.content})
 
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
@@ -163,7 +243,7 @@ async def chat(req: ChatRequest) -> JSONResponse:
                 model="claude-opus-4-8",
                 max_tokens=4096,
                 system=get_system_prompt(),
-                messages=req.messages,
+                messages=history,
                 tools=tools,
                 thinking={"type": "adaptive"},
             )
@@ -175,8 +255,11 @@ async def chat(req: ChatRequest) -> JSONResponse:
     reply = "\n".join(text_parts)
     vega_spec = _extract_vega_spec(message.content)
 
-    return JSONResponse({"reply": reply, "vega_spec": vega_spec})
+    await add_message(db, req.session_id, "user", req.content)
+    await add_message(db, req.session_id, "assistant", reply, vega_spec=vega_spec)
+
+    return ChatResponse(reply=reply, vega_spec=vega_spec)
 
 
-# Serve the web UI — must be mounted last so /api/chat takes priority
+# Serve the web UI — must be mounted last so API routes take priority
 app.mount("/", StaticFiles(directory=str(_HERE), html=True), name="static")
