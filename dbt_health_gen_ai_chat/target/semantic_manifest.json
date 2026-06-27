@@ -1,1 +1,200 @@
-{"semantic_models": [{"name": "semantic_glucose_register", "defaults": null, "description": "A semantic model for the glucose_register table", "node_relation": {"alias": "view_glucose_register", "schema_name": "health_gen_ai_chat", "database": null, "relation_name": "`health_gen_ai_chat`.`view_glucose_register`"}, "primary_entity": null, "entities": [{"name": "uuid", "description": null, "type": "primary", "role": null, "expr": null, "metadata": null, "label": null}], "measures": [{"name": "glucose_value_average", "agg": "average", "description": "The average glucose value", "create_metric": false, "expr": "glucose_value", "agg_params": null, "metadata": null, "non_additive_dimension": null, "agg_time_dimension": null, "label": null}], "dimensions": [{"name": "timestamp_day", "description": "The timestamp when the record was recorded", "type": "time", "is_partition": false, "type_params": {"time_granularity": "day", "validity_params": null}, "expr": null, "metadata": null, "label": null}, {"name": "timestamp_hour", "description": "The timestamp when the record was recorded", "type": "categorical", "is_partition": false, "type_params": null, "expr": null, "metadata": null, "label": null}, {"name": "sensor_scan", "description": "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)", "type": "categorical", "is_partition": false, "type_params": null, "expr": null, "metadata": null, "label": null}], "label": null, "metadata": null}, {"name": "semantic_strava_activities", "defaults": null, "description": "A semantic model for the strava_activities table", "node_relation": {"alias": "view_strava_activities", "schema_name": "health_gen_ai_chat", "database": null, "relation_name": "`health_gen_ai_chat`.`view_strava_activities`"}, "primary_entity": null, "entities": [{"name": "activity_id", "description": null, "type": "primary", "role": null, "expr": null, "metadata": null, "label": null}], "measures": [{"name": "distance_m_sum", "agg": "sum", "description": "The total distance covered during the activity (in meters)", "create_metric": false, "expr": "distance_m", "agg_params": null, "metadata": null, "non_additive_dimension": null, "agg_time_dimension": null, "label": null}], "dimensions": [{"name": "start_date_local", "description": "The local start date and time of the activity", "type": "time", "is_partition": false, "type_params": {"time_granularity": "day", "validity_params": null}, "expr": null, "metadata": null, "label": null}], "label": null, "metadata": null}], "metrics": [], "project_configuration": {"time_spine_table_configurations": [{"location": "`health_gen_ai_chat`.`metricflow_time_spine`", "column_name": "date_day", "grain": "day"}], "metadata": null, "dsi_package_version": {"major_version": "0", "minor_version": "4", "patch_version": "4"}}, "saved_queries": []}
+{
+    "semantic_models": [
+        {
+            "name": "semantic_glucose_register",
+            "defaults": null,
+            "description": "A semantic model for the glucose_register table",
+            "node_relation": {
+                "alias": "view_glucose_register",
+                "schema_name": "health_gen_ai_chat",
+                "database": null,
+                "relation_name": "`health_gen_ai_chat`.`view_glucose_register`"
+            },
+            "primary_entity": null,
+            "entities": [
+                {
+                    "name": "uuid",
+                    "description": null,
+                    "type": "primary",
+                    "role": null,
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                }
+            ],
+            "measures": [
+                {
+                    "name": "glucose_value_average",
+                    "agg": "average",
+                    "description": "The average glucose value",
+                    "create_metric": false,
+                    "expr": "glucose_value",
+                    "agg_params": null,
+                    "metadata": null,
+                    "non_additive_dimension": null,
+                    "agg_time_dimension": null,
+                    "label": null
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "timestamp_day",
+                    "description": "The timestamp when the record was recorded",
+                    "type": "time",
+                    "is_partition": false,
+                    "type_params": {
+                        "time_granularity": "day",
+                        "validity_params": null
+                    },
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                },
+                {
+                    "name": "timestamp_hour",
+                    "description": "The timestamp when the record was recorded",
+                    "type": "categorical",
+                    "is_partition": false,
+                    "type_params": null,
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                },
+                {
+                    "name": "sensor_scan",
+                    "description": "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)",
+                    "type": "categorical",
+                    "is_partition": false,
+                    "type_params": null,
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                }
+            ],
+            "label": null,
+            "metadata": null
+        },
+        {
+            "name": "semantic_strava_activities",
+            "defaults": null,
+            "description": "A semantic model for the strava_activities table",
+            "node_relation": {
+                "alias": "view_strava_activities",
+                "schema_name": "health_gen_ai_chat",
+                "database": null,
+                "relation_name": "`health_gen_ai_chat`.`view_strava_activities`"
+            },
+            "primary_entity": null,
+            "entities": [
+                {
+                    "name": "activity_id",
+                    "description": null,
+                    "type": "primary",
+                    "role": null,
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                }
+            ],
+            "measures": [
+                {
+                    "name": "distance_m_sum",
+                    "agg": "sum",
+                    "description": "The total distance covered during the activity (in meters)",
+                    "create_metric": false,
+                    "expr": "distance_m",
+                    "agg_params": null,
+                    "metadata": null,
+                    "non_additive_dimension": null,
+                    "agg_time_dimension": null,
+                    "label": null
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "start_date_local",
+                    "description": "The local start date and time of the activity",
+                    "type": "time",
+                    "is_partition": false,
+                    "type_params": {
+                        "time_granularity": "day",
+                        "validity_params": null
+                    },
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                }
+            ],
+            "label": null,
+            "metadata": null
+        },
+        {
+            "name": "semantic_food",
+            "defaults": null,
+            "description": "A semantic model for the food table",
+            "node_relation": {
+                "alias": "view_food_register",
+                "schema_name": "health_gen_ai_chat",
+                "database": null,
+                "relation_name": "`health_gen_ai_chat`.`view_food_register`"
+            },
+            "primary_entity": null,
+            "entities": [
+                {
+                    "name": "uuid",
+                    "description": null,
+                    "type": "primary",
+                    "role": null,
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                }
+            ],
+            "measures": [
+                {
+                    "name": "weight_grams_sum",
+                    "agg": "sum",
+                    "description": "The total weight of the food items consumed (in grams)",
+                    "create_metric": false,
+                    "expr": "weight_grams",
+                    "agg_params": null,
+                    "metadata": null,
+                    "non_additive_dimension": null,
+                    "agg_time_dimension": null,
+                    "label": null
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "food_type",
+                    "description": "The type of the food item",
+                    "type": "categorical",
+                    "is_partition": false,
+                    "type_params": null,
+                    "expr": null,
+                    "metadata": null,
+                    "label": null
+                }
+            ],
+            "label": null,
+            "metadata": null
+        }
+    ],
+    "metrics": [],
+    "project_configuration": {
+        "time_spine_table_configurations": [
+            {
+                "location": "`health_gen_ai_chat`.`metricflow_time_spine`",
+                "column_name": "date_day",
+                "grain": "day"
+            }
+        ],
+        "metadata": null,
+        "dsi_package_version": {
+            "major_version": "0",
+            "minor_version": "4",
+            "patch_version": "4"
+        }
+    },
+    "saved_queries": []
+}
