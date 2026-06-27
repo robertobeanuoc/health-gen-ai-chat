@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import os
 import json
+from pathlib import Path
+
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 

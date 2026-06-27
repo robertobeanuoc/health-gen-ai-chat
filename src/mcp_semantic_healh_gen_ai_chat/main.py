@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import json
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # MCP server initialization
 mcp = FastMCP("dbt_core_semantic_layer")

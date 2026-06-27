@@ -24,6 +24,10 @@ import re
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 import anthropic
 from anthropic.lib.tools.mcp import async_mcp_tool
 from fastapi import FastAPI, HTTPException
