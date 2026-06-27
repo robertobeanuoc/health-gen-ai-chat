@@ -13,8 +13,10 @@ SELECT
     DATE(created_at) AS "timestamp_day",
     food_type,
     glycemic_index,
-    glycemic_index * 
-    weight_grams
+    weight_grams,
+    carbohydrate_percentage,
+    carbohydrate_weight_grams,
+    absorption_type
 
 
 FROM {{ source('food', 'food_register') }}
