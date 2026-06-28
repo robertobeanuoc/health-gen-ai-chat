@@ -19,6 +19,7 @@ Required environment variables:
     MYSQL_ALCHEMY_URI    — SQLAlchemy connection URL for MySQL
 """
 
+import hashlib
 import json
 import os
 import re
@@ -31,7 +32,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 import anthropic
 from anthropic.lib.tools.mcp import async_mcp_tool
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mcp import ClientSession, StdioServerParameters
@@ -238,9 +239,10 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
     try:
+        model = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
         async with _mcp_tools() as tools:
             runner = client.beta.messages.tool_runner(
-                model="claude-opus-4-8",
+                model=model,
                 max_tokens=4096,
                 system=get_system_prompt(),
                 messages=history,
@@ -259,6 +261,24 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     await add_message(db, req.session_id, "assistant", reply, vega_spec=vega_spec)
 
     return ChatResponse(reply=reply, vega_spec=vega_spec)
+
+
+@app.get("/")
+async def serve_ui(request: Request):
+    content = (_HERE / "index.html").read_bytes()
+    etag = f'"{hashlib.md5(content).hexdigest()}"'
+
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+
+    return Response(
+        content=content,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-cache",
+            "ETag": etag,
+        },
+    )
 
 
 # Serve the web UI — must be mounted last so API routes take priority
