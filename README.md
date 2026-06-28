@@ -98,16 +98,23 @@ Re-run this command any time you change your dbt models or schema files.
 
 ### 4. Set environment variables
 
+Copy the example file and fill in your credentials:
+
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-export MYSQL_ALCHEMY_URI="mysql+pymysql://user:password@localhost:3306/health_db"
+cp .env.example .env
 ```
 
-Optional (override dbt artifact paths):
+```
+# .env
+ANTHROPIC_API_KEY=sk-ant-...
+MYSQL_ALCHEMY_URI=mysql+pymysql://user:password@localhost:3306/health_db
+```
 
-```bash
-export DBT_MANIFEST_PATH="/absolute/path/to/manifest.json"
-export DBT_SEMANTIC_MANIFEST_PATH="/absolute/path/to/semantic_manifest.json"
+Optional — only needed if your dbt artifact paths differ from the defaults:
+
+```
+DBT_MANIFEST_PATH=/absolute/path/to/manifest.json
+DBT_SEMANTIC_MANIFEST_PATH=/absolute/path/to/semantic_manifest.json
 ```
 
 ### 5. Start the chat agent
@@ -130,14 +137,37 @@ The agent discovers your data schema, writes SQL, executes it, and returns resul
 
 `src/chat_agent/index.html` is a standalone dark-theme chat interface. It sends requests to `POST /api/chat` and renders Vega-Lite charts inline. The backend server (`src/chat_agent/server.py`) is included in the repo.
 
-Install the web server extras (only needed once) and start:
+Start the server (FastAPI and Uvicorn are already included in the project dependencies):
 
 ```bash
-uv add fastapi uvicorn
 uv run uvicorn src.chat_agent.server:app --reload --port 8000
 ```
 
 Open `http://localhost:8000` in your browser.
+
+---
+
+## Docker
+
+The project includes a `docker/Dockerfile` and a `docker-compose.yml` for running the full stack in a container.
+
+### Requirements
+
+- Docker and Docker Compose installed
+- A `.env` file in the project root (see [Environment variables](#4-set-environment-variables))
+- The dbt artifacts already compiled (`dbt_health_gen_ai_chat/target/manifest.json` must exist)
+
+### Build and run
+
+```bash
+docker compose up --build
+```
+
+The app will be available at `http://localhost:8000`.
+
+### Environment variables in Docker
+
+Docker Compose reads `.env` from the project root automatically and injects `ANTHROPIC_API_KEY` and `MYSQL_ALCHEMY_URI` into the container. The `MYSQL_ALCHEMY_URI` must point to a MySQL instance reachable from inside the container (use your host IP or a Docker network hostname instead of `localhost`).
 
 ---
 
@@ -165,6 +195,10 @@ Open `http://localhost:8000` in your browser.
 health-gen-ai-chat/
 ├── pyproject.toml                            # project metadata & dependencies (uv)
 ├── uv.lock                                   # locked dependency graph
+├── docker-compose.yml                        # Docker Compose — builds and runs the app
+├── .env.example                              # environment variable template
+├── docker/
+│   └── Dockerfile                            # container image for the FastAPI server
 ├── dbt_health_gen_ai_chat/                   # dbt project
 │   ├── dbt_project.yml
 │   ├── models/

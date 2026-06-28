@@ -92,19 +92,26 @@ dbt_health_gen_ai_chat/target/semantic_manifest.json
 
 ## Step 4 — Set environment variables
 
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-export MYSQL_ALCHEMY_URI="mysql+pymysql://your_user:your_password@localhost:3306/health_db"
-```
-
-Optional overrides for dbt artifact paths (only needed if your paths differ from the defaults):
+Copy the example file and fill in your values:
 
 ```bash
-export DBT_MANIFEST_PATH="/absolute/path/to/manifest.json"
-export DBT_SEMANTIC_MANIFEST_PATH="/absolute/path/to/semantic_manifest.json"
+cp .env.example .env
 ```
 
-> **Tip:** Put these in a `.env` file and load them with `source .env` or use `python-dotenv`.
+```bash
+# .env
+ANTHROPIC_API_KEY=sk-ant-...
+MYSQL_ALCHEMY_URI=mysql+pymysql://your_user:your_password@localhost:3306/health_db
+```
+
+Optional — override dbt artifact paths only if they differ from the defaults:
+
+```bash
+DBT_MANIFEST_PATH=/absolute/path/to/manifest.json
+DBT_SEMANTIC_MANIFEST_PATH=/absolute/path/to/semantic_manifest.json
+```
+
+The app loads `.env` automatically via `python-dotenv` on startup.
 
 ---
 
@@ -133,23 +140,37 @@ Type `quit`, `exit`, or `q` to stop. Press `Ctrl+C` to exit immediately.
 
 ## Step 6 — Use the web UI
 
-The web UI (`src/chat_agent/index.html`) is a standalone HTML file that talks to a backend at `POST /api/chat`. You need a thin HTTP wrapper around the agent to use it.
+The web UI (`src/chat_agent/index.html`) is a standalone HTML file that talks to `POST /api/chat`. The FastAPI server (`src/chat_agent/server.py`) is included in the repo and its dependencies (`fastapi`, `uvicorn`) are already part of the project.
 
-### Quick backend with FastAPI
-
-Install FastAPI and Uvicorn into the project environment (only needed once):
-
-```bash
-uv add fastapi uvicorn
-```
-
-`src/chat_agent/server.py` is already included in the repo. Start it with:
+Start the server:
 
 ```bash
 uv run uvicorn src.chat_agent.server:app --reload --port 8000
 ```
 
 Open your browser at `http://localhost:8000` — the chat UI loads and charts are rendered inline.
+
+---
+
+## Alternative — Docker
+
+If you prefer not to install Python or uv locally, you can run the web server in a container.
+
+### Requirements
+
+- Docker and Docker Compose
+- `.env` file in the project root (Step 4 above)
+- dbt artifacts already compiled (Step 3 above)
+
+### Build and start
+
+```bash
+docker compose up --build
+```
+
+The app is available at `http://localhost:8000`.
+
+> **Note:** `MYSQL_ALCHEMY_URI` must use your host's IP address (or a Docker network hostname) instead of `localhost` so the container can reach the database.
 
 ---
 
@@ -254,6 +275,10 @@ health-gen-ai-chat/
 ├── README.md                               # project overview & quick start
 ├── pyproject.toml                          # package metadata & dependencies (uv)
 ├── uv.lock                                 # locked dependency graph
+├── docker-compose.yml                      # Docker Compose — builds and runs the app
+├── .env.example                            # environment variable template
+├── docker/
+│   └── Dockerfile                          # container image for the FastAPI server
 ├── dbt_health_gen_ai_chat/                 # dbt project
 │   ├── dbt_project.yml
 │   ├── models/
