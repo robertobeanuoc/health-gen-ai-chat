@@ -155,7 +155,7 @@ Returns column names and data types for a named dbt model or source. Searches `n
 
 ## Data sources exposed
 
-The dbt project currently defines two sources:
+The dbt project defines three sources:
 
 ### `abbot.glucose_register` (schema: `cgm_abbot_connector`)
 
@@ -190,12 +190,31 @@ Physical activity records synced from Strava.
 
 dbt view: `view_strava_activities` — passes all columns through unchanged.
 
+### `food.food_register` (schema: `food_recognition`)
+
+Food intake records with glycemic and nutritional data.
+
+| Column | Type | Description |
+|---|---|---|
+| `uuid` | string | Unique record identifier |
+| `file_uid` | string | Identifier of the source image/file |
+| `created_at` | datetime | When the food was logged |
+| `food_type` | string | Name/type of the food item |
+| `glycemic_index` | int | Glycemic index of the food |
+| `weight_grams` | int | Weight of the portion in grams |
+| `carbohydrate_percentage` | decimal | Carbohydrate content as a percentage |
+| `carbohydrate_weight_grams` | decimal | Weight of carbohydrates in grams |
+| `absorption_type` | string | `fast` or `slow` absorption |
+
+dbt view: `view_food_register` — adds `timehour` (`HOUR(created_at)`) and `timestamp_day` (`DATE(created_at)`).
+
 ## Semantic models
 
 | Semantic model | Source view | Primary entity | Measures | Dimensions |
 |---|---|---|---|---|
 | `semantic_glucose_register` | `view_glucose_register` | `uuid` | `glucose_value_average` (avg) | `timestamp_day` (time), `timestamp_hour` (cat), `sensor_scan` (cat) |
 | `semantic_strava_activities` | `view_strava_activities` | `activity_id` | `distance_m_sum` (sum) | `start_date_local` (time) |
+| `semantic_food` | `view_food_register` | `uuid` | `weight_grams_sum` (sum), `weight_grams_average` (avg), `carbohydrate_weight_grams_sum` (sum), `carbohydrate_weight_grams_average` (avg) | `food_type` (cat), `absorption_type` (cat), `glycemic_index` (cat) |
 
 ## Error handling
 
