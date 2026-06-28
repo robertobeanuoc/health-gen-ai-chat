@@ -24,6 +24,7 @@ import json
 import os
 import re
 from contextlib import AsyncExitStack, asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -61,6 +62,24 @@ from .schemas import (
 
 _HERE = Path(__file__).parent
 _SRC = _HERE.parent
+
+# (mtime_ns, etag, content, last_modified) — recomputed only when the file changes
+_index_cache: tuple | None = None
+
+
+def _index_response_data() -> tuple[str, bytes, str]:
+    global _index_cache
+    path = _HERE / "index.html"
+    mtime_ns = path.stat().st_mtime_ns
+    if _index_cache is None or _index_cache[0] != mtime_ns:
+        content = path.read_bytes()
+        etag = f'"{hashlib.md5(content).hexdigest()}"'
+        last_modified = datetime.fromtimestamp(mtime_ns / 1e9, tz=timezone.utc).strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )
+        _index_cache = (mtime_ns, etag, content, last_modified)
+    _, etag, content, last_modified = _index_cache
+    return etag, content, last_modified
 
 
 @asynccontextmanager
@@ -265,11 +284,13 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
 
 @app.get("/")
 async def serve_ui(request: Request):
-    content = (_HERE / "index.html").read_bytes()
-    etag = f'"{hashlib.md5(content).hexdigest()}"'
+    etag, content, last_modified = _index_response_data()
 
     if request.headers.get("if-none-match") == etag:
-        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+        return Response(
+            status_code=304,
+            headers={"ETag": etag, "Cache-Control": "no-cache", "Last-Modified": last_modified},
+        )
 
     return Response(
         content=content,
@@ -277,6 +298,7 @@ async def serve_ui(request: Request):
         headers={
             "Cache-Control": "no-cache",
             "ETag": etag,
+            "Last-Modified": last_modified,
         },
     )
 
