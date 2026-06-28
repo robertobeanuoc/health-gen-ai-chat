@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     ports:
-      - "8000:8000"
+      - "8888:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - MYSQL_ALCHEMY_URI=${MYSQL_ALCHEMY_URI}
