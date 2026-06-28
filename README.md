@@ -170,7 +170,6 @@ The project includes a `docker/Dockerfile` and a `docker-compose.yml` for runnin
 
 - Docker and Docker Compose installed
 - A `.env` file in the project root (see [Environment variables](#4-set-environment-variables))
-- The dbt artifacts already compiled (`dbt_health_gen_ai_chat/target/manifest.json` must exist)
 
 ### Build and run
 
@@ -182,7 +181,19 @@ The app will be available at `http://localhost:8000`.
 
 ### Environment variables in Docker
 
-Docker Compose reads `.env` from the project root automatically and injects `ANTHROPIC_API_KEY` and `MYSQL_ALCHEMY_URI` into the container. The `MYSQL_ALCHEMY_URI` must point to a MySQL instance reachable from inside the container (use your host IP or a Docker network hostname instead of `localhost`).
+Docker Compose reads `.env` from the project root automatically and injects the following variables into the container:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key |
+| `MYSQL_HOST` | Yes | Use your host IP or a Docker network hostname — **not** `localhost` |
+| `MYSQL_PORT` | No | Defaults to `3306` |
+| `MYSQL_USER` | Yes | |
+| `MYSQL_PASSWORD` | Yes | |
+| `MYSQL_DATABASE` | Yes | |
+| `CLAUDE_MODEL` | No | Defaults to `claude-haiku-4-5-20251001` |
+
+The dbt artifacts (`manifest.json`, `semantic_manifest.json`) are generated automatically at container startup — no need to compile them before building the image.
 
 ---
 

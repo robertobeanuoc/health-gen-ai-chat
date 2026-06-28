@@ -173,7 +173,6 @@ If you prefer not to install Python or uv locally, you can run the web server in
 
 - Docker and Docker Compose
 - `.env` file in the project root (Step 4 above)
-- dbt artifacts already compiled (Step 3 above)
 
 ### Build and start
 
@@ -183,7 +182,7 @@ docker compose up --build
 
 The app is available at `http://localhost:8000`.
 
-> **Note:** `MYSQL_ALCHEMY_URI` must use your host's IP address (or a Docker network hostname) instead of `localhost` so the container can reach the database.
+> **Note:** `MYSQL_HOST` must be your host's IP address (or a Docker network hostname) instead of `localhost` so the container can reach the database. The dbt artifacts are generated automatically at container startup — no manual `dbt compile` step needed.
 
 ---
 
