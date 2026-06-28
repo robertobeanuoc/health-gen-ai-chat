@@ -17,44 +17,36 @@ LLM
 
 ## Configuration
 
-| Environment variable | Required | Description |
-|---|---|---|
-| `MYSQL_ALCHEMY_URI` | **Yes** | SQLAlchemy connection URL for the MySQL database |
+| Environment variable | Required | Default | Description |
+|---|---|---|---|
+| `MYSQL_HOST` | **Yes** | — | MySQL hostname or IP address |
+| `MYSQL_USER` | **Yes** | — | MySQL username |
+| `MYSQL_PASSWORD` | **Yes** | — | MySQL password |
+| `MYSQL_DATABASE` | **Yes** | — | Database name |
+| `MYSQL_PORT` | No | `3306` | MySQL port |
 
-### Connection URL format
+The SQLAlchemy connection URL is built at runtime from these variables using `URL.create("mysql+pymysql", ...)`, which correctly handles passwords containing special characters.
 
-```
-mysql+pymysql://<user>:<password>@<host>:<port>/<database>
-```
-
-Examples:
-
-```bash
-# Local database
-MYSQL_ALCHEMY_URI="mysql+pymysql://root:secret@localhost:3306/health_db"
-
-# Remote database
-MYSQL_ALCHEMY_URI="mysql+pymysql://analyst:pass@db.example.com:3306/health_db"
-
-# With SSL (append query params)
-MYSQL_ALCHEMY_URI="mysql+pymysql://user:pass@host/db?ssl_ca=/certs/ca.pem"
-```
-
-> The engine is **lazy-initialized**: the server process starts successfully even if `MYSQL_ALCHEMY_URI` is not set. The error is raised only when the first query is attempted. This allows the chat agent to start all three MCP servers without needing the database credentials available at process start time.
+> The engine is **lazy-initialized**: the server process starts successfully even if the MySQL vars are not set. The error is raised only when the first query is attempted. This allows the chat agent to start all three MCP servers without needing the database credentials available at process start time.
 
 ## Starting the server
 
 ```bash
 # Standalone (from repo root)
-MYSQL_ALCHEMY_URI="mysql+pymysql://user:pass@localhost/health_db" \
+MYSQL_HOST=localhost MYSQL_USER=root MYSQL_PASSWORD=secret MYSQL_DATABASE=health_db \
   uv run python -m src.mcp_exec_health_gen_ai_chat.main
 
 # Test connection manually
 uv run python -c "
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, URL
 import os
-e = create_engine(os.environ['MYSQL_ALCHEMY_URI'])
-with e.connect() as c:
+url = URL.create('mysql+pymysql',
+    username=os.environ['MYSQL_USER'],
+    password=os.environ['MYSQL_PASSWORD'],
+    host=os.environ['MYSQL_HOST'],
+    port=int(os.getenv('MYSQL_PORT', '3306')),
+    database=os.environ['MYSQL_DATABASE'])
+with create_engine(url).connect() as c:
     print(c.execute(text('SELECT 1')).fetchone())
 "
 ```

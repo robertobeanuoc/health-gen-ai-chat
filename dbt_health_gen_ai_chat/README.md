@@ -39,21 +39,26 @@ dbt_health_gen_ai_chat/
 
 ## Configuration
 
-Create `~/.dbt/profiles.yml` with your MySQL connection details:
+The project includes `profiles.yml` which reads all connection details from environment variables — no credentials are stored in the file:
 
 ```yaml
-health_gen_ai_chat:
+# dbt_health_gen_ai_chat/profiles.yml
+dbt_health_gen_ai_chat:
   target: dev
   outputs:
     dev:
       type: mysql
-      server: localhost       # your MySQL host
-      port: 3306
-      schema: dbt_dev         # schema where dbt writes its models
-      username: your_user
-      password: your_password
-      ssl_disabled: true      # set to false if your server requires SSL
+      server: "{{ env_var('MYSQL_HOST') }}"
+      port: "{{ env_var('MYSQL_PORT', '3306') | int }}"
+      schema: "{{ env_var('MYSQL_DATABASE') }}"
+      username: "{{ env_var('MYSQL_USER') }}"
+      password: "{{ env_var('MYSQL_PASSWORD') }}"
+      ssl_disabled: true
 ```
+
+Set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE` in your `.env` file (see root `.env.example`). All dbt commands require `--profiles-dir dbt_health_gen_ai_chat` so dbt finds this file instead of `~/.dbt/profiles.yml`.
+
+In Docker the entrypoint automatically runs `dbt compile` at startup — no manual step needed.
 
 ## Common commands
 
@@ -61,20 +66,20 @@ All commands should be run from the repo root using `uv run` so they execute ins
 
 ```bash
 # Verify the database connection and dbt setup
-uv run dbt debug --project-dir dbt_health_gen_ai_chat
+uv run dbt debug --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 
 # Generate manifest artifacts required by the semantic MCP server
-uv run dbt compile --project-dir dbt_health_gen_ai_chat
+uv run dbt compile --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 
 # Build (materialize) all models in the database
-uv run dbt run --project-dir dbt_health_gen_ai_chat
+uv run dbt run --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 
 # Run schema tests
-uv run dbt test --project-dir dbt_health_gen_ai_chat
+uv run dbt test --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 
 # Generate and serve documentation
-uv run dbt docs generate --project-dir dbt_health_gen_ai_chat
-uv run dbt docs serve --project-dir dbt_health_gen_ai_chat
+uv run dbt docs generate --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
+uv run dbt docs serve --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 ```
 
 > **Important:** Run `dbt compile` before starting the chat agent. The semantic MCP server reads `target/manifest.json` and `target/semantic_manifest.json` — if these files do not exist the server will fail with a `FileNotFoundError`.

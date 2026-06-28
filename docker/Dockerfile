@@ -9,7 +9,13 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
 COPY src/ ./src/
+
+# Copy the full dbt project including profiles.yml, which reads MySQL
+# connection params from env vars (MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD,
+# MYSQL_DATABASE, MYSQL_PORT). The entrypoint runs `dbt compile` at startup
+# using --profiles-dir to point dbt at this file, then starts uvicorn.
 COPY dbt_health_gen_ai_chat/ ./dbt_health_gen_ai_chat/
+
 COPY docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 
