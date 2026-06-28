@@ -283,9 +283,78 @@
       padding: 2px 5px;
       font-size: 0.88em;
     }
+
+    /* ── Sidebar toggle (mobile) ── */
+    #sidebar-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: #e1e4e8;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    #sidebar-toggle:hover { background: #21262d; }
+
+    /* ── Overlay (mobile) ── */
+    #sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 99;
+    }
+
+    #sidebar-overlay.visible { display: block; }
+
+    /* ── Responsive: tablet ── */
+    @media (max-width: 900px) {
+      #sidebar { width: 220px; min-width: 220px; }
+    }
+
+    /* ── Responsive: mobile ── */
+    @media (max-width: 680px) {
+      #sidebar-toggle { display: block; }
+
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transform: translateX(-100%);
+        transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45);
+        width: 260px;
+        min-width: 0;
+      }
+
+      #sidebar.open { transform: translateX(0); }
+
+      .message { max-width: 92%; }
+
+      #chat-window { padding: 12px; gap: 12px; }
+
+      #input-area { padding: 10px 12px; gap: 8px; }
+
+      #send-btn { padding: 10px 14px; font-size: 0.9rem; }
+
+      header { padding: 12px 14px; font-size: 0.95rem; }
+    }
+
+    @media (max-width: 400px) {
+      #input-area { flex-direction: column; }
+      #send-btn { align-self: flex-end; }
+    }
   </style>
 </head>
 <body>
+
+<div id="sidebar-overlay"></div>
 
 <!-- Sidebar -->
 <aside id="sidebar">
@@ -299,6 +368,7 @@
 <!-- Main -->
 <div id="main">
   <header>
+    <button id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
     🩺 Health Gen AI Chat
     <span id="session-name"></span>
   </header>
@@ -480,6 +550,8 @@
 
     await refreshSidebar();
     scrollBottom();
+
+    if (window.innerWidth <= 680) closeSidebar();
   }
 
   // ---------------------------------------------------------------------------
@@ -548,6 +620,30 @@
     userInput.style.height = "auto";
     userInput.style.height = Math.min(userInput.scrollHeight, 180) + "px";
   });
+
+  // ---------------------------------------------------------------------------
+  // Sidebar drawer (mobile)
+  // ---------------------------------------------------------------------------
+
+  const sidebar        = document.getElementById("sidebar");
+  const sidebarOverlay = document.getElementById("sidebar-overlay");
+  const sidebarToggle  = document.getElementById("sidebar-toggle");
+
+  function openSidebar() {
+    sidebar.classList.add("open");
+    sidebarOverlay.classList.add("visible");
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove("open");
+    sidebarOverlay.classList.remove("visible");
+  }
+
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.contains("open") ? closeSidebar() : openSidebar();
+  });
+
+  sidebarOverlay.addEventListener("click", closeSidebar);
 
   // ---------------------------------------------------------------------------
   // Boot
