@@ -57,26 +57,29 @@ uv sync
 
 ### 2. Configure dbt
 
-Create `~/.dbt/profiles.yml`:
+The repository includes `dbt_health_gen_ai_chat/profiles.yml`, which reads connection details from environment variables so **no credentials are hardcoded**:
 
 ```yaml
-health_gen_ai_chat:
+# dbt_health_gen_ai_chat/profiles.yml  (already in the repo)
+dbt_health_gen_ai_chat:
   target: dev
   outputs:
     dev:
       type: mysql
-      server: localhost
-      port: 3306
-      schema: dbt_dev
-      username: your_user
-      password: your_password
+      server: "{{ env_var('MYSQL_HOST') }}"
+      port: "{{ env_var('MYSQL_PORT', '3306') | int }}"
+      schema: "{{ env_var('MYSQL_DATABASE') }}"
+      username: "{{ env_var('MYSQL_USER') }}"
+      password: "{{ env_var('MYSQL_PASSWORD') }}"
       ssl_disabled: true
 ```
 
-Test the connection:
+All dbt commands must be run with `--profiles-dir dbt_health_gen_ai_chat` so dbt finds this file instead of looking in `~/.dbt/`.
+
+Test the connection (after setting the env vars in Step 4):
 
 ```bash
-uv run dbt debug --project-dir dbt_health_gen_ai_chat
+uv run dbt debug --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 ```
 
 ### 3. Compile dbt artifacts
@@ -84,7 +87,7 @@ uv run dbt debug --project-dir dbt_health_gen_ai_chat
 The semantic MCP server reads `manifest.json` and `semantic_manifest.json`. Generate them with:
 
 ```bash
-uv run dbt compile --project-dir dbt_health_gen_ai_chat
+uv run dbt compile --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat
 ```
 
 This creates:
@@ -107,14 +110,13 @@ cp .env.example .env
 ```
 # .env
 ANTHROPIC_API_KEY=sk-ant-...
-MYSQL_ALCHEMY_URI=mysql+pymysql://user:password@localhost:3306/health_db
-```
 
-Optional — only needed if your dbt artifact paths differ from the defaults:
-
-```
-DBT_MANIFEST_PATH=/absolute/path/to/manifest.json
-DBT_SEMANTIC_MANIFEST_PATH=/absolute/path/to/semantic_manifest.json
+# MySQL connection — used by the app, mcp-exec, and dbt
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=your_user
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=your_database
 ```
 
 Optional — override the Claude model used by the **web UI** (terminal mode always uses `claude-opus-4-8`):
@@ -285,9 +287,9 @@ uv run <command>          # no need to activate the venv manually
 
 | Symptom | Fix |
 |---|---|
-| `FileNotFoundError: dbt artifact not found` | Run `uv run dbt compile --project-dir dbt_health_gen_ai_chat` |
-| `RuntimeError: MYSQL_ALCHEMY_URI environment variable is not set` | Export `MYSQL_ALCHEMY_URI` before running the agent |
-| `pymysql.err.OperationalError` | Check host/port/credentials in `MYSQL_ALCHEMY_URI`; confirm the MySQL user has `SELECT` on both source schemas |
+| `FileNotFoundError: dbt artifact not found` | Run `uv run dbt compile --project-dir dbt_health_gen_ai_chat --profiles-dir dbt_health_gen_ai_chat` |
+| `RuntimeError: Missing required env vars: MYSQL_HOST …` | Set `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` in `.env` |
+| `pymysql.err.OperationalError` | Check values of `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`; confirm the MySQL user has `SELECT` on both source schemas |
 | `anthropic.APIError: authentication_error` | Check `ANTHROPIC_API_KEY` is set and valid |
 | Charts don't render | Ensure the browser can reach `cdn.jsdelivr.net` (Vega/vega-embed CDN) |
 
