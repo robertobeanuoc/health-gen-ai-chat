@@ -19,6 +19,7 @@ Required environment variables:
     MYSQL_ALCHEMY_URI    — SQLAlchemy connection URL for MySQL
 """
 
+import hashlib
 import json
 import os
 import re
@@ -31,7 +32,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 import anthropic
 from anthropic.lib.tools.mcp import async_mcp_tool
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mcp import ClientSession, StdioServerParameters
@@ -259,6 +260,24 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     await add_message(db, req.session_id, "assistant", reply, vega_spec=vega_spec)
 
     return ChatResponse(reply=reply, vega_spec=vega_spec)
+
+
+@app.get("/")
+async def serve_ui(request: Request):
+    content = (_HERE / "index.html").read_bytes()
+    etag = f'"{hashlib.md5(content).hexdigest()}"'
+
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+
+    return Response(
+        content=content,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-cache",
+            "ETag": etag,
+        },
+    )
 
 
 # Serve the web UI — must be mounted last so API routes take priority
