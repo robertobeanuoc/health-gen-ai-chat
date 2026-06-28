@@ -27,6 +27,7 @@ The three MCP servers run as child processes of the chat agent. You only need to
 |---|---|---|
 | Abbott LibreLink | `cgm_abbot_connector` | Continuous glucose monitor readings |
 | Strava | `strava-to-db` | Physical activity records |
+| Food recognition | `food_recognition` | Food intake records with glycemic index and carbohydrates |
 
 ---
 
@@ -196,8 +197,15 @@ Docker Compose reads `.env` from the project root automatically and injects `ANT
 - *Show me a bar chart of activity count by sport type.*
 - *What are my top 5 longest rides?*
 
+**Food:**
+- *What foods did I eat most this week?*
+- *Show me the total carbohydrates I consumed per day this month.*
+- *What is my average glycemic index by food type?*
+- *Which foods with fast absorption did I eat the most?*
+
 **Cross-domain:**
 - *On days when I exercise, is my average glucose lower?*
+- *Does eating high-glycemic foods correlate with higher glucose readings?*
 
 ---
 

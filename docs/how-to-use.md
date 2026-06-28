@@ -188,7 +188,7 @@ The app is available at `http://localhost:8000`.
 
 ## Example questions
 
-The following questions work out of the box with the two configured data sources.
+The following questions work out of the box with the three configured data sources.
 
 ### Glucose data
 
@@ -226,6 +226,24 @@ What are my top 5 longest rides?
 How does my moving time compare to elapsed time across activity types?
 ```
 
+### Food intake
+
+```
+What foods did I eat most this week?
+```
+
+```
+Show me total carbohydrates consumed per day this month.
+```
+
+```
+What is my average glycemic index by food type?
+```
+
+```
+Which foods with fast absorption did I eat the most?
+```
+
 ### Cross-domain
 
 ```
@@ -234,6 +252,10 @@ On days when I exercise, is my average glucose lower?
 
 ```
 Show me a scatter plot of total elevation gain vs distance for my runs.
+```
+
+```
+Does eating high-glycemic foods correlate with higher glucose readings?
 ```
 
 ---
