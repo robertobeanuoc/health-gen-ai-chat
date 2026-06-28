@@ -1,6 +1,6 @@
 # Health Gen AI Chat
 
-A natural-language chat agent for personal health data, powered by **Claude Opus**, **dbt**, and three **MCP servers**.
+A natural-language chat agent for personal health data, powered by **Claude** (via Anthropic API), **dbt**, and three **MCP servers**.
 
 Ask questions in plain English, get SQL executed against your databases, and see results as interactive charts — all from a terminal or a browser.
 
@@ -12,7 +12,7 @@ Ask questions in plain English, get SQL executed against your databases, and see
 You (terminal or browser)
         │
         ▼
-  Chat Agent  ──────  Claude Opus 4.8 (Anthropic API)
+  Chat Agent  ──────  Claude API  (Opus 4.8 in terminal · Haiku 4.5 default in web UI)
         │
         ├── MCP: mcp_semantic        reads dbt artifacts → metrics, columns, lineage
         ├── MCP: mcp_exec            runs read-only SQL against MySQL
@@ -117,6 +117,16 @@ DBT_MANIFEST_PATH=/absolute/path/to/manifest.json
 DBT_SEMANTIC_MANIFEST_PATH=/absolute/path/to/semantic_manifest.json
 ```
 
+Optional — override the Claude model used by the **web UI** (terminal mode always uses `claude-opus-4-8`):
+
+```
+CLAUDE_MODEL=claude-haiku-4-5-20251001   # default
+# CLAUDE_MODEL=claude-sonnet-4-6
+# CLAUDE_MODEL=claude-opus-4-8
+```
+
+Only thinking-capable models are supported (`thinking={"type": "adaptive"}` is always enabled).
+
 ### 5. Start the chat agent
 
 ```bash
@@ -135,7 +145,9 @@ The agent discovers your data schema, writes SQL, executes it, and returns resul
 
 ## Web UI
 
-`src/chat_agent/index.html` is a standalone dark-theme chat interface. It sends requests to `POST /api/chat` and renders Vega-Lite charts inline. The backend server (`src/chat_agent/server.py`) is included in the repo.
+`src/chat_agent/index.html` is a responsive dark-theme chat interface that works on desktop, tablet, and mobile. On narrow screens the session sidebar becomes a slide-in drawer toggled by a hamburger button. It sends requests to `POST /api/chat` and renders Vega-Lite charts inline. The backend server (`src/chat_agent/server.py`) is included in the repo.
+
+The web UI uses `claude-haiku-4-5-20251001` by default. Set `CLAUDE_MODEL` in `.env` to switch to a different thinking-capable model.
 
 Start the server (FastAPI and Uvicorn are already included in the project dependencies):
 
