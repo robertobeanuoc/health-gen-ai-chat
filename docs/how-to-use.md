@@ -8,7 +8,7 @@ This guide walks you from a fresh checkout to a running chat session where you c
 You (browser or terminal)
       │
       ▼
-Chat Agent  ─── Claude Opus 4.8 (Anthropic API)
+Chat Agent  ─── Claude API  (Opus 4.8 in terminal · Haiku 4.5 default in web UI)
       │
       ├── MCP: mcp_semantic   → dbt artifact reader (metrics, columns, lineage)
       ├── MCP: mcp_exec       → read-only MySQL query runner
@@ -111,6 +111,16 @@ DBT_MANIFEST_PATH=/absolute/path/to/manifest.json
 DBT_SEMANTIC_MANIFEST_PATH=/absolute/path/to/semantic_manifest.json
 ```
 
+Optional — override the Claude model used by the **web UI** (terminal mode always uses `claude-opus-4-8`):
+
+```bash
+CLAUDE_MODEL=claude-haiku-4-5-20251001   # default
+# CLAUDE_MODEL=claude-sonnet-4-6
+# CLAUDE_MODEL=claude-opus-4-8
+```
+
+Only thinking-capable models are supported (`thinking={"type": "adaptive"}` is always enabled).
+
 The app loads `.env` automatically via `python-dotenv` on startup.
 
 ---
@@ -140,7 +150,7 @@ Type `quit`, `exit`, or `q` to stop. Press `Ctrl+C` to exit immediately.
 
 ## Step 6 — Use the web UI
 
-The web UI (`src/chat_agent/index.html`) is a standalone HTML file that talks to `POST /api/chat`. The FastAPI server (`src/chat_agent/server.py`) is included in the repo and its dependencies (`fastapi`, `uvicorn`) are already part of the project.
+The web UI (`src/chat_agent/index.html`) is a responsive HTML chat interface that works on desktop, tablet, and mobile — on narrow screens the session sidebar becomes a slide-in drawer. It talks to `POST /api/chat` and renders Vega-Lite charts inline. The FastAPI server (`src/chat_agent/server.py`) is included in the repo and its dependencies (`fastapi`, `uvicorn`) are already part of the project.
 
 Start the server:
 
@@ -149,6 +159,8 @@ uv run uvicorn src.chat_agent.server:app --reload --port 8000
 ```
 
 Open your browser at `http://localhost:8000` — the chat UI loads and charts are rendered inline.
+
+The model defaults to `claude-haiku-4-5-20251001`; set `CLAUDE_MODEL` in `.env` to use a different thinking-capable model (e.g. `claude-sonnet-4-6` or `claude-opus-4-8`).
 
 ---
 
