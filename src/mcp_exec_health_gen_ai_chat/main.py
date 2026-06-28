@@ -8,21 +8,36 @@ from mcp.server.fastmcp import FastMCP
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 
 mcp = FastMCP("mysql_execution_engine")
 
-MYSQL_URI = os.getenv("MYSQL_ALCHEMY_URI")
-
 _engine = None
+
+
+def _build_url() -> URL:
+    host = os.getenv("MYSQL_HOST", "")
+    user = os.getenv("MYSQL_USER", "")
+    password = os.getenv("MYSQL_PASSWORD", "")
+    database = os.getenv("MYSQL_DATABASE", "")
+    missing = [name for name, val in [("MYSQL_HOST", host), ("MYSQL_USER", user), ("MYSQL_PASSWORD", password), ("MYSQL_DATABASE", database)] if not val]
+    if missing:
+        raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
+    return URL.create(
+        "mysql+pymysql",
+        username=user,
+        password=password,
+        host=host,
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=database,
+    )
+
 
 def _get_engine():
     global _engine
     if _engine is None:
-        uri = os.getenv("MYSQL_ALCHEMY_URI")
-        if not uri:
-            raise RuntimeError("MYSQL_ALCHEMY_URI environment variable is not set.")
-        _engine = create_engine(uri, pool_pre_ping=True)
+        _engine = create_engine(_build_url(), pool_pre_ping=True)
     return _engine
 
 @mcp.tool()

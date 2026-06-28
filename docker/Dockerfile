@@ -9,8 +9,10 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
 COPY src/ ./src/
-COPY dbt_health_gen_ai_chat/target/ ./dbt_health_gen_ai_chat/target/
+COPY dbt_health_gen_ai_chat/ ./dbt_health_gen_ai_chat/
+COPY docker/entrypoint.sh ./entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "src.chat_agent.server:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["./entrypoint.sh"]

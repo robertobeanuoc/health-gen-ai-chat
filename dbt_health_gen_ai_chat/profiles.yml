@@ -1,0 +1,11 @@
+dbt_health_gen_ai_chat:
+  target: dev
+  outputs:
+    dev:
+      type: mysql
+      server: "{{ env_var('MYSQL_HOST') }}"
+      port: "{{ env_var('MYSQL_PORT', '3306') | int }}"
+      schema: "{{ env_var('MYSQL_DATABASE') }}"
+      username: "{{ env_var('MYSQL_USER') }}"
+      password: "{{ env_var('MYSQL_PASSWORD') }}"
+      ssl_disabled: true

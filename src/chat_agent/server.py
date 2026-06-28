@@ -15,8 +15,12 @@ Start:
     uv run uvicorn src.chat_agent.server:app --reload --port 8000
 
 Required environment variables:
-    ANTHROPIC_API_KEY    — Anthropic API key
-    MYSQL_ALCHEMY_URI    — SQLAlchemy connection URL for MySQL
+    ANTHROPIC_API_KEY  — Anthropic API key
+    MYSQL_HOST         — MySQL hostname
+    MYSQL_USER         — MySQL username
+    MYSQL_PASSWORD     — MySQL password
+    MYSQL_DATABASE     — MySQL database name
+    MYSQL_PORT         — MySQL port (default: 3306)
 """
 
 import hashlib
