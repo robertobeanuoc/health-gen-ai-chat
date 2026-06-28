@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -158,8 +159,50 @@
       padding: 12px 16px;
       border-radius: 10px;
       line-height: 1.6;
-      white-space: pre-wrap;
       word-break: break-word;
+    }
+
+    .message.user { white-space: pre-wrap; }
+
+    .message.assistant p { margin: 0 0 10px; }
+    .message.assistant p:last-child { margin-bottom: 0; }
+    .message.assistant h1,
+    .message.assistant h2,
+    .message.assistant h3 { margin: 14px 0 6px; font-size: 1em; color: #c9d1d9; }
+    .message.assistant ul,
+    .message.assistant ol { margin: 6px 0 10px; padding-left: 22px; }
+    .message.assistant li { margin: 3px 0; }
+    .message.assistant pre {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 14px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .message.assistant pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.85em;
+    }
+    .message.assistant table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+      font-size: 0.88em;
+    }
+    .message.assistant th,
+    .message.assistant td {
+      border: 1px solid #30363d;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .message.assistant th { background: #161b22; color: #c9d1d9; }
+    .message.assistant blockquote {
+      border-left: 3px solid #30363d;
+      margin: 8px 0;
+      padding: 4px 12px;
+      color: #8b949e;
     }
 
     .message.user {
@@ -375,7 +418,11 @@
     emptyState.style.display = "none";
     const div = document.createElement("div");
     div.className = `message ${role}`;
-    div.textContent = text;
+    if (role === "assistant") {
+      div.innerHTML = marked.parse(text);
+    } else {
+      div.textContent = text;
+    }
 
     if (vegaSpec) {
       const chartDiv = document.createElement("div");
