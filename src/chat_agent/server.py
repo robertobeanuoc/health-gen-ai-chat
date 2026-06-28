@@ -239,9 +239,10 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
     try:
+        model = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
         async with _mcp_tools() as tools:
             runner = client.beta.messages.tool_runner(
-                model="claude-opus-4-8",
+                model=model,
                 max_tokens=4096,
                 system=get_system_prompt(),
                 messages=history,
