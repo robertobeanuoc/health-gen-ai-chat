@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -322,6 +322,8 @@
 </div>
 
 <script>
+  marked.use({ gfm: true, breaks: false });
+
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
