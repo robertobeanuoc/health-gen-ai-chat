@@ -30,6 +30,43 @@ semantic_models:
         agg: average           
         description: "The average glucose value"
 
+  - name: semantic_insulin_register
+    description: "A semantic model for the insulin_register table"
+    model: ref('view_insulin_register')
+    entities:
+      - name: uuid
+        type: primary
+
+    dimensions:
+
+      - name: timestamp_day
+        type: time
+        type_params:
+          time_granularity: day
+        description: "The timestamp when the record was recorded"
+
+      - name: timestamp_hour
+        type: categorical
+        description: "The timestamp when the record was recorded"
+
+      - name: insulin_type
+        type: categorical
+        description: "The type of insulin administered"
+
+      - name: is_rapid
+        type: categorical
+        description: "Indicates whether the insulin is rapid-acting (1) or not (0)"
+
+    measures:
+      - name: insulin_value_average
+        expr: insulin_value
+        agg: average
+        description: "The average insulin value"
+      - name: insulin_value_sum
+        expr: insulin_value
+        agg: sum
+        description: "The total insulin value"
+
   - name: semantic_strava_activities
     description: "A semantic model for the strava_activities table"
     model: ref('view_strava_activities')

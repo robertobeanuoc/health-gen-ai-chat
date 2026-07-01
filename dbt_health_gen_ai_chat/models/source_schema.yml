@@ -21,7 +21,30 @@ sources:
           - name: sensor_scan
             description: "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)"
             type: tinyint
-            
+      - name: insulin_register
+        columns:
+          - name: uuid
+            description: "The unique identifier for each record"
+            type: string
+          - name: row_created_at
+            description: "The identifier for the patient"
+          - name: timestamp
+            description: "The timestamp of the insulin measurement"
+          - name: timestamp_year
+            description: "The year of the timestamp"
+          - name: timestamp_month
+            description: "The month of the timestamp"
+          - name: timestamp_day
+            description: "The day of the timestamp"
+          - name: timestamp_hour
+            type: datetime
+          - name: insulin_value
+            description: "The insulin level measurement"
+            type: double
+          - name: is_rapid
+            description: "Indicates whether the insulin is rapid-acting (1) or not (0)"
+            type: tinyint
+
   - name: strava
     schema: "strava-to-db"
     tables:
