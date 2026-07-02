@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 # stdio is the MCP transport's wire protocol — logs must go to stderr, never stdout.
 logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -17,9 +17,14 @@ logger = logging.getLogger(__name__)
 # MCP server initialization
 mcp = FastMCP("dbt_core_semantic_layer")
 
-# Default paths to dbt-core artifacts
-MANIFEST_PATH = os.getenv("DBT_MANIFEST_PATH", "../../dbt_health_gen_ai_chat/target/manifest.json")
-SEMANTIC_MANIFEST_PATH = os.getenv("DBT_SEMANTIC_MANIFEST_PATH", "../../dbt_health_gen_ai_chat/target/semantic_manifest.json")
+# Default paths to dbt-core artifacts. Anchored on this file's location (not on the
+# process's cwd) so they resolve correctly regardless of how/where the server is
+# launched from — local dev, `main.py`'s subprocess, `server.py`'s subprocess, or Docker.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_DBT_TARGET = _PROJECT_ROOT / "dbt_health_gen_ai_chat" / "target"
+
+MANIFEST_PATH = os.getenv("DBT_MANIFEST_PATH", str(_DBT_TARGET / "manifest.json"))
+SEMANTIC_MANIFEST_PATH = os.getenv("DBT_SEMANTIC_MANIFEST_PATH", str(_DBT_TARGET / "semantic_manifest.json"))
 
 def _load_json(file_path: str) -> dict:
     if not os.path.exists(file_path):

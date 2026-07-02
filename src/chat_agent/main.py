@@ -24,6 +24,7 @@ from pathlib import Path
 import anthropic
 from anthropic import AsyncAnthropic
 from anthropic.lib.tools.mcp import async_mcp_tool
+from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -36,6 +37,10 @@ logger = logging.getLogger(__name__)
 # MCP server process definitions
 # ---------------------------------------------------------------------------
 SRC = Path(__file__).parent.parent
+
+# Load the project-root .env (the same file docker-compose.yml reads) before
+# MCP_SERVERS captures os.environ below.
+load_dotenv(SRC.parent / ".env")
 
 MCP_SERVERS = {
     "mcp_semantic": {
