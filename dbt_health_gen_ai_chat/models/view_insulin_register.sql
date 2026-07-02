@@ -7,13 +7,12 @@ config(
 SELECT 
 
     uuid,
-    row_crated_at,
+    row_created_at,
     "timestamp",
     timestamp_year,
     timestamp_month,
     timestamp_day,
     timestamp_hour,
-    insulin_type,
     insulin_value,
     is_rapid 
 
