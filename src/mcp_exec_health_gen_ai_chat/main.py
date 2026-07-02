@@ -52,7 +52,7 @@ def execute_read_query(sql_query: str) -> str:
     Executes read-only SQL statements (DQL) on the MySQL database engine.
     Accepts any valid SELECT query generated from the semantic layer.
     """
-    logger.info("execute_read_query called | query=%s", sql_query[:300])
+    logger.info("execute_read_query called | query_chars=%d", len(sql_query))
 
     # Strict restriction on write or structural modification commands
     check_query = sql_query.upper()
