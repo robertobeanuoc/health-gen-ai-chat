@@ -73,7 +73,7 @@ def execute_read_query(sql_query: str) -> str:
             return json.dumps(rows, default=str, ensure_ascii=False)
 
     except SQLAlchemyError as e:
-        logger.error("execute_read_query failed | query=%s | error=%s", sql_query[:300], e)
+        logger.exception("execute_read_query failed | query_chars=%d", len(sql_query))
         return f"Execution error in MySQL database: {str(e)}"
 
 if __name__ == "__main__":
