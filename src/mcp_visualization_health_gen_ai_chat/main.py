@@ -48,9 +48,9 @@ def generate_vega_chart(data: list[dict], chart_type: str, x_axis: str, y_axis: 
         }
 
         return json.dumps(vega_spec, indent=2)
-    except Exception as e:
-        logger.error("generate_vega_chart failed | error=%s", e)
-        return f"Error generating chart: {str(e)}"
+    except Exception:
+        logger.exception("generate_vega_chart failed")
+        return "Error generating chart."
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
