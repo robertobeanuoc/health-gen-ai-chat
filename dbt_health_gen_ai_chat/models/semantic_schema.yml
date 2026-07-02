@@ -49,10 +49,6 @@ semantic_models:
         type: categorical
         description: "The timestamp when the record was recorded"
 
-      - name: insulin_type
-        type: categorical
-        description: "The type of insulin administered"
-
       - name: is_rapid
         type: categorical
         description: "Indicates whether the insulin is rapid-acting (1) or not (0)"
