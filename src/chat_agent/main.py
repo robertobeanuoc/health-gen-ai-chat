@@ -16,6 +16,7 @@ The companion index.html detects this and renders it with vega-embed.
 
 import asyncio
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -27,6 +28,9 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from .config import get_system_prompt
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # MCP server process definitions
@@ -75,7 +79,7 @@ async def run_agent_turn(
 
     while True:
         response = await client.messages.create(
-            model="claude-opus-4-8",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
             system=get_system_prompt(),
             messages=messages,
@@ -133,6 +137,7 @@ async def main_mcp():
                 env=cfg.get("env"),
                 cwd=cfg.get("cwd"),
             )
+            logger.info("connecting to MCP server | command=%s args=%s", cfg["command"], cfg["args"])
             read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
@@ -143,6 +148,7 @@ async def main_mcp():
             result = await session.list_tools()
             for t in result.tools:
                 tools.append(async_mcp_tool(t, session))
+        logger.info("MCP tools loaded | count=%d", len(tools))
 
         while True:
             try:
@@ -158,17 +164,30 @@ async def main_mcp():
                 continue
 
             messages.append({"role": "user", "content": user_input})
+            logger.info("user turn started | content_length=%d", len(user_input))
 
             try:
                 runner = client.beta.messages.tool_runner(
-                    model="claude-opus-4-8",
+                    model="claude-sonnet-4-6",
                     max_tokens=4096,
                     system=get_system_prompt(),
                     messages=messages,
                     tools=tools,
                     thinking={"type": "adaptive"},
+                    # Auto-caches the last cacheable block (system + tools + accumulated
+                    # messages), so repeated tool-calling rounds and later user turns reuse
+                    # the cached prefix instead of paying full price on the growing history.
+                    cache_control={"type": "ephemeral"},
                 )
                 response = await runner.until_done()
+
+                usage = response.usage
+                print(
+                    f"  [usage] input={usage.input_tokens} output={usage.output_tokens} "
+                    f"cache_write={getattr(usage, 'cache_creation_input_tokens', 0) or 0} "
+                    f"cache_read={getattr(usage, 'cache_read_input_tokens', 0) or 0}",
+                    flush=True,
+                )
 
                 assistant_content = response.content
                 messages.append({"role": "assistant", "content": assistant_content})
@@ -178,6 +197,7 @@ async def main_mcp():
                 print(f"\nAssistant: {reply}\n")
 
             except anthropic.APIError as e:
+                logger.error("Anthropic API error during chat turn: %s", e)
                 print(f"API error: {e}", file=sys.stderr)
                 messages.pop()
 

@@ -25,6 +25,7 @@ Required environment variables:
 
 import hashlib
 import json
+import logging
 import os
 import re
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -63,6 +64,8 @@ from .schemas import (
     SessionSummary,
     UpdateSessionRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 _HERE = Path(__file__).parent
 _SRC = _HERE.parent
@@ -199,12 +202,14 @@ def _extract_vega_spec(content: list) -> dict | None:
 
 @app.post("/api/sessions", response_model=SessionOut, status_code=201)
 async def create_new_session(req: CreateSessionRequest, db=Depends(get_db)):
+    logger.info("create_new_session called | title=%s", req.title)
     session = await create_session(db, title=req.title)
     return session
 
 
 @app.get("/api/sessions", response_model=list[SessionSummary])
 async def get_sessions(db=Depends(get_db)):
+    logger.debug("get_sessions called")
     rows = await list_sessions(db)
     return [
         SessionSummary(
@@ -220,24 +225,30 @@ async def get_sessions(db=Depends(get_db)):
 
 @app.get("/api/sessions/{session_id}", response_model=SessionDetail)
 async def get_session_detail(session_id: str, db=Depends(get_db)):
+    logger.debug("get_session_detail called | session_id=%s", session_id)
     session = await get_session(db, session_id)
     if not session:
+        logger.warning("get_session_detail — session not found | session_id=%s", session_id)
         raise HTTPException(status_code=404, detail="Session not found.")
     return session
 
 
 @app.patch("/api/sessions/{session_id}", response_model=SessionOut)
 async def rename_session(session_id: str, req: UpdateSessionRequest, db=Depends(get_db)):
+    logger.info("rename_session called | session_id=%s title=%s", session_id, req.title)
     session = await update_session_title(db, session_id, req.title)
     if not session:
+        logger.warning("rename_session — session not found | session_id=%s", session_id)
         raise HTTPException(status_code=404, detail="Session not found.")
     return session
 
 
 @app.delete("/api/sessions/{session_id}", status_code=204)
 async def remove_session(session_id: str, db=Depends(get_db)):
+    logger.info("remove_session called | session_id=%s", session_id)
     deleted = await delete_session(db, session_id)
     if not deleted:
+        logger.warning("remove_session — session not found | session_id=%s", session_id)
         raise HTTPException(status_code=404, detail="Session not found.")
     return Response(status_code=204)
 
@@ -248,12 +259,16 @@ async def remove_session(session_id: str, db=Depends(get_db)):
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db=Depends(get_db)):
+    logger.info("chat called | session_id=%s content_length=%d", req.session_id, len(req.content))
+
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
+        logger.error("chat — ANTHROPIC_API_KEY is not set")
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not set.")
 
     session = await get_session(db, req.session_id)
     if not session:
+        logger.warning("chat — session not found | session_id=%s", req.session_id)
         raise HTTPException(status_code=404, detail="Session not found.")
 
     history = await get_session_history(db, req.session_id)
@@ -262,7 +277,7 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
     try:
-        model = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+        model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
         async with _mcp_tools() as tools:
             runner = client.beta.messages.tool_runner(
                 model=model,
@@ -271,10 +286,27 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
                 messages=history,
                 tools=tools,
                 thinking={"type": "adaptive"},
+                # Auto-caches the last cacheable block (system + tools + accumulated
+                # messages), so repeated tool-calling rounds and later chat turns in the
+                # same session reuse the cached prefix instead of paying full price.
+                cache_control={"type": "ephemeral"},
             )
             message = await runner.until_done()
     except anthropic.APIError as exc:
+        logger.error("chat — Anthropic API error | session_id=%s | error=%s", req.session_id, exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    usage = message.usage
+    logger.info(
+        "chat usage session=%s model=%s input_tokens=%d output_tokens=%d "
+        "cache_creation_input_tokens=%d cache_read_input_tokens=%d",
+        req.session_id,
+        model,
+        usage.input_tokens,
+        usage.output_tokens,
+        getattr(usage, "cache_creation_input_tokens", 0) or 0,
+        getattr(usage, "cache_read_input_tokens", 0) or 0,
+    )
 
     text_parts = [b.text for b in message.content if hasattr(b, "text") and b.type == "text"]
     reply = "\n".join(text_parts)

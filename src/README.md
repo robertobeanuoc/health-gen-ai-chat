@@ -9,7 +9,7 @@ This directory contains all four Python packages that make up the Health Gen AI 
 | [`mcp_semantic_healh_gen_ai_chat/`](mcp_semantic_healh_gen_ai_chat/) | `dbt_core_semantic_layer` | Reads dbt artifacts and exposes metrics, dimensions, and column schemas to the LLM |
 | [`mcp_exec_health_gen_ai_chat/`](mcp_exec_health_gen_ai_chat/) | `mysql_execution_engine` | Executes read-only SQL queries against MySQL and returns JSON rows |
 | [`mcp_visualization_health_gen_ai_chat/`](mcp_visualization_health_gen_ai_chat/) | `DashboardEngine` | Generates Vega-Lite v5 chart specifications from raw data |
-| [`chat_agent/`](chat_agent/) | — | LLM agent + web UI. Terminal mode (`main.py`) uses Claude Opus 4.8. Web server (`server.py`) defaults to Claude Haiku 4.5, configurable via `CLAUDE_MODEL` |
+| [`chat_agent/`](chat_agent/) | — | LLM agent + web UI. Both terminal mode (`main.py`) and web server (`server.py`) default to Claude Sonnet 4.6, configurable via `CLAUDE_MODEL` in the web server |
 
 ## Running a server directly (for testing)
 
