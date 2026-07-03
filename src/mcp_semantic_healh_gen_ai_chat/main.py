@@ -32,6 +32,22 @@ def _load_json(file_path: str) -> dict:
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def _resolve_semantic_model_alias(name: str) -> str | None:
+    """
+    Semantic models (e.g. "semantic_glucose_register") are defined in
+    semantic_manifest.json and are named differently from the dbt model they
+    wrap (e.g. "view_glucose_register"). Resolves a semantic model name to
+    the underlying model's alias, or None if `name` isn't a semantic model.
+    """
+    try:
+        data = _load_json(SEMANTIC_MANIFEST_PATH)
+    except FileNotFoundError:
+        return None
+    for sm in data.get("semantic_models", []):
+        if sm.get("name") == name:
+            return sm.get("node_relation", {}).get("alias")
+    return None
+
 @mcp.tool()
 def list_local_metrics() -> str:
     """
@@ -107,6 +123,17 @@ def get_model_lineage(model_name: str) -> str:
                     break
 
         if not target_node:
+            # Also check semantic models — the LLM may pass the semantic model
+            # name (e.g. "semantic_glucose_register") instead of the dbt model
+            # it wraps (e.g. "view_glucose_register").
+            alias = _resolve_semantic_model_alias(model_name)
+            if alias:
+                for node_id, node_info in nodes.items():
+                    if node_info.get("name") == alias and node_info.get("resource_type") == "model":
+                        target_node = node_info
+                        break
+
+        if not target_node:
             logger.warning("get_model_lineage — model not found | model_name=%s", model_name)
             return f"Model '{model_name}' not found in manifest.json."
 
@@ -146,6 +173,17 @@ def get_table_columns(model_name: str) -> str:
                 if src_info.get("name") == model_name:
                     target_node = src_info
                     break
+
+        if not target_node:
+            # Also check semantic models — the LLM may pass the semantic model
+            # name (e.g. "semantic_glucose_register") instead of the dbt model
+            # it wraps (e.g. "view_glucose_register").
+            alias = _resolve_semantic_model_alias(model_name)
+            if alias:
+                for node_id, node_info in nodes.items():
+                    if node_info.get("name") == alias and node_info.get("resource_type") == "model":
+                        target_node = node_info
+                        break
 
         if not target_node:
             logger.warning("get_table_columns — model/source not found | model_name=%s", model_name)
