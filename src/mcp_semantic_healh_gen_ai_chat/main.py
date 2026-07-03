@@ -97,11 +97,22 @@ def get_model_lineage(model_name: str) -> str:
                 break
 
         if not target_node:
+            # Also check sources — the LLM may pass the raw source table name
+            # (e.g. "glucose_register") instead of the model that wraps it
+            # (e.g. "view_glucose_register").
+            sources = data.get("sources", {})
+            for src_id, src_info in sources.items():
+                if src_info.get("name") == model_name:
+                    target_node = src_info
+                    break
+
+        if not target_node:
             logger.warning("get_model_lineage — model not found | model_name=%s", model_name)
             return f"Model '{model_name}' not found in manifest.json."
 
         lineage = {
             "name": target_node.get("name"),
+            "resource_type": target_node.get("resource_type"),
             "database": target_node.get("database"),
             "schema": target_node.get("schema"),
             "upstream_dependencies": target_node.get("depends_on", {}).get("nodes", [])
