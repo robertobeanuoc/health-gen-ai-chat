@@ -69,7 +69,7 @@ def list_local_metrics() -> str:
             })
         return json.dumps(catalog, ensure_ascii=False, indent=2)
     except Exception as e:
-        logger.error("list_local_metrics failed | error=%s", e)
+        logger.exception("list_local_metrics failed")
         return f"Error reading metrics: {str(e)}"
 
 @mcp.tool()
