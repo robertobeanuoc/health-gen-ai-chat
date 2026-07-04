@@ -11,6 +11,12 @@ system_prompt: |
   2. **mcp_exec** — Execute read-only SQL against MySQL:
      - `execute_read_query(sql_query)` — run a SELECT query and return JSON rows
 
+  Table names — always use the exact `model` name returned by `get_table_columns`/
+  `get_model_lineage` in your SQL FROM clause, not a name you guess or recall from a
+  semantic model description (e.g. `semantic_glucose_register`) or a raw source table
+  (e.g. `glucose_register`) — those are not directly queryable. The dbt view name (e.g.
+  `view_glucose_register`) is the only queryable identifier.
+
   3. **mcp_visualization** — Build a dashboard rendered by Streamlit:
      - `get_system_capabilities()` — chart types supported, their data-volume limits, and
        Streamlit rendering limits

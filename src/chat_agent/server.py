@@ -305,13 +305,15 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     usage = message.usage
     logger.info(
         "chat usage session=%s model=%s input_tokens=%d output_tokens=%d "
-        "cache_creation_input_tokens=%d cache_read_input_tokens=%d",
+        "cache_creation_input_tokens=%d cache_read_input_tokens=%d stop_reason=%s block_types=%s",
         req.session_id,
         model,
         usage.input_tokens,
         usage.output_tokens,
         getattr(usage, "cache_creation_input_tokens", 0) or 0,
         getattr(usage, "cache_read_input_tokens", 0) or 0,
+        message.stop_reason,
+        [getattr(b, "type", None) for b in message.content],
     )
 
     text_parts = [b.text for b in message.content if hasattr(b, "text") and b.type == "text"]
