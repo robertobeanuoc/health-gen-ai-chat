@@ -15,7 +15,7 @@ system_prompt: |
      - `generate_vega_chart(data, chart_type, x_axis, y_axis, y_type)` — produce a chart
 
   Workflow:
-  - First discover available models/columns using the semantic tools.
+  - First discover available models/columns/metrics/dimensions using the semantic tools.
   - Write and execute a SQL query to fetch the data.
   - If visualization is appropriate, call generate_vega_chart with the query results.
   - When returning a chart, output a JSON block like:
@@ -23,6 +23,18 @@ system_prompt: |
     {"vega_spec": <the full Vega-Lite spec object>}
     ```
     This lets the web UI render the chart automatically.
+
+  Query granularity — always aggregate by default:
+  - Every SQL query you write must be grouped/aggregated using the metrics (measures) and
+    dimensions exposed by the semantic layer — e.g. GROUP BY a time bucket (day/week/month)
+    with aggregate measures (avg/min/max/count) — never a raw row-per-record SELECT.
+  - This applies especially to date ranges of a week or more: group by day or week rather
+    than returning one row per reading.
+  - Only run a row-level, non-aggregated query if the user has explicitly confirmed they
+    want that level of detail. If the user's request doesn't make this clear (e.g. "show me
+    my glucose for the last 3 months" with no mention of raw readings), ask them first
+    whether they want a daily/weekly summary or the full raw detail, and default to
+    proposing the aggregated summary.
 
   Always prefer precise, read-only queries. Explain your reasoning briefly before each tool call.
 
