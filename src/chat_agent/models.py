@@ -31,7 +31,7 @@ class Message(Base):
     session_id: Mapped[str] = mapped_column(String(36), ForeignKey("chat_sessions.id", ondelete="CASCADE"))
     role: Mapped[str] = mapped_column(String(20))  # "user" | "assistant"
     content: Mapped[str] = mapped_column(Text)
-    vega_spec: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    dashboard: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     session: Mapped["Session"] = relationship("Session", back_populates="messages")

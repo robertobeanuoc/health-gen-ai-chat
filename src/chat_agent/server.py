@@ -9,6 +9,7 @@ Serves:
   PATCH /api/sessions/{id}    — rename a session
   DELETE /api/sessions/{id}   — delete a session and its messages
   POST /api/chat              — send a message within a session
+  GET  /api/messages/{id}/dashboard — dashboard config for a message (used by Streamlit)
   GET  /                      — serves index.html and static assets
 
 Start:
@@ -49,6 +50,7 @@ from .crud import (
     add_message,
     create_session,
     delete_session,
+    get_message,
     get_session,
     get_session_history,
     list_sessions,
@@ -153,10 +155,14 @@ async def _mcp_tools():
         yield tools
 
 
-def _extract_vega_spec(content: list) -> dict | None:
+def _is_dashboard(obj) -> bool:
+    return isinstance(obj, dict) and "charts" in obj and "title" in obj and "error" not in obj
+
+
+def _extract_dashboard(content: list) -> dict | None:
     """
-    Scan all response content blocks for a generate_vega_chart tool result
-    and return the parsed Vega-Lite spec, or None if no chart was produced.
+    Scan all response content blocks for a build_dashboard tool result and
+    return the parsed dashboard config, or None if no dashboard was built.
     """
     for block in content:
         block_type = getattr(block, "type", None)
@@ -165,9 +171,9 @@ def _extract_vega_spec(content: list) -> dict | None:
             raw = getattr(block, "content", None) or getattr(block, "output", None)
             if isinstance(raw, str):
                 try:
-                    spec = json.loads(raw)
-                    if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
-                        return spec
+                    parsed = json.loads(raw)
+                    if _is_dashboard(parsed):
+                        return parsed
                 except (json.JSONDecodeError, TypeError):
                     pass
             elif isinstance(raw, list):
@@ -175,9 +181,9 @@ def _extract_vega_spec(content: list) -> dict | None:
                     text = getattr(item, "text", None) or (item.get("text") if isinstance(item, dict) else None)
                     if text:
                         try:
-                            spec = json.loads(text)
-                            if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
-                                return spec
+                            parsed = json.loads(text)
+                            if _is_dashboard(parsed):
+                                return parsed
                         except (json.JSONDecodeError, TypeError):
                             pass
 
@@ -185,11 +191,11 @@ def _extract_vega_spec(content: list) -> dict | None:
             text = getattr(block, "text", "")
             for match in re.finditer(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text):
                 try:
-                    spec = json.loads(match.group(1))
-                    if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
-                        return spec
-                    if isinstance(spec, dict) and "vega_spec" in spec:
-                        return spec["vega_spec"]
+                    parsed = json.loads(match.group(1))
+                    if _is_dashboard(parsed):
+                        return parsed
+                    if isinstance(parsed, dict) and _is_dashboard(parsed.get("dashboard")):
+                        return parsed["dashboard"]
                 except (json.JSONDecodeError, TypeError):
                     pass
 
@@ -310,12 +316,22 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
 
     text_parts = [b.text for b in message.content if hasattr(b, "text") and b.type == "text"]
     reply = "\n".join(text_parts)
-    vega_spec = _extract_vega_spec(message.content)
+    dashboard = _extract_dashboard(message.content)
 
     await add_message(db, req.session_id, "user", req.content)
-    await add_message(db, req.session_id, "assistant", reply, vega_spec=vega_spec)
+    assistant_message = await add_message(db, req.session_id, "assistant", reply, dashboard=dashboard)
 
-    return ChatResponse(reply=reply, vega_spec=vega_spec)
+    return ChatResponse(reply=reply, message_id=assistant_message.id, dashboard=dashboard)
+
+
+@app.get("/api/messages/{message_id}/dashboard")
+async def get_message_dashboard(message_id: str, db=Depends(get_db)):
+    """Fetch a dashboard config by message id — used by the Streamlit renderer iframe."""
+    logger.debug("get_message_dashboard called | message_id=%s", message_id)
+    message = await get_message(db, message_id)
+    if not message or not message.dashboard:
+        raise HTTPException(status_code=404, detail="No dashboard for this message.")
+    return JSONResponse(content=message.dashboard)
 
 
 @app.get("/")

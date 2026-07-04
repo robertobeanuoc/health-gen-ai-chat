@@ -16,10 +16,10 @@ You (terminal or browser)
         │
         ├── MCP: mcp_semantic        reads dbt artifacts → metrics, columns, lineage
         ├── MCP: mcp_exec            runs read-only SQL against MySQL
-        └── MCP: mcp_visualization   generates Vega-Lite chart specs
+        └── MCP: mcp_visualization   validates & builds dashboard configs (Streamlit renders them)
 ```
 
-The three MCP servers run as child processes of the chat agent. You only need to start the agent.
+The three MCP servers run as child processes of the chat agent. You only need to start the agent. The web UI additionally embeds a separate Streamlit process to render dashboards.
 
 ### Data sources
 
@@ -142,23 +142,24 @@ Health Gen AI Chat — type 'quit' to exit.
 You: What is my average glucose by day this week?
 ```
 
-The agent discovers your data schema, writes SQL, executes it, and returns results. If a chart is appropriate it prints a Vega-Lite spec that the web UI renders automatically.
+The agent discovers your data schema, writes SQL, executes it, and returns results. If a dashboard is appropriate it builds one via the visualization MCP server, which the web UI renders through an embedded Streamlit app.
 
 ---
 
 ## Web UI
 
-`src/chat_agent/index.html` is a responsive dark-theme chat interface that works on desktop, tablet, and mobile. On narrow screens the session sidebar becomes a slide-in drawer toggled by a hamburger button. It sends requests to `POST /api/chat` and renders Vega-Lite charts inline. The backend server (`src/chat_agent/server.py`) is included in the repo.
+`src/chat_agent/index.html` is a responsive dark-theme chat interface that works on desktop, tablet, and mobile. On narrow screens the session sidebar becomes a slide-in drawer toggled by a hamburger button. It sends requests to `POST /api/chat` and, for messages that built a dashboard, embeds a Streamlit iframe scoped to that message — a session can accumulate any number of dashboards this way. The backend server (`src/chat_agent/server.py`) is included in the repo.
 
 The web UI uses `claude-haiku-4-5-20251001` by default. Set `CLAUDE_MODEL` in `.env` to switch to a different thinking-capable model.
 
-Start the server (FastAPI and Uvicorn are already included in the project dependencies):
+Start both processes (FastAPI/Uvicorn and Streamlit are already included in the project dependencies):
 
 ```bash
 uv run uvicorn src.chat_agent.server:app --reload --port 8000
+uv run streamlit run src/chat_agent/streamlit_dashboard.py --server.port 8501
 ```
 
-Open `http://localhost:8000` in your browser.
+Open `http://localhost:8000` in your browser. The Streamlit app at `http://localhost:8501` is only meant to be embedded in the chat UI's iframes — it renders one dashboard per `message_id` query param, not a standalone view.
 
 ---
 
@@ -177,11 +178,11 @@ The project includes a `docker/Dockerfile` and a `docker-compose.yml` for runnin
 docker compose up --build
 ```
 
-The app will be available at `http://localhost:8000`.
+The app will be available at `http://localhost:8000`, and the Streamlit dashboard renderer (embedded by the chat UI) at `http://localhost:8501`.
 
 ### Environment variables in Docker
 
-Docker Compose reads `.env` from the project root automatically and injects the following variables into the container:
+Docker Compose reads `.env` from the project root automatically and injects the following variables into the `app` container:
 
 | Variable | Required | Notes |
 |---|---|---|
@@ -192,6 +193,8 @@ Docker Compose reads `.env` from the project root automatically and injects the 
 | `MYSQL_PASSWORD` | Yes | |
 | `MYSQL_DATABASE` | Yes | |
 | `CLAUDE_MODEL` | No | Defaults to `claude-haiku-4-5-20251001` |
+
+The `streamlit` service reuses the same image with a different command, and is given `CHAT_API_BASE_URL=http://app:8000` so it can reach the chat backend over the Docker network.
 
 The dbt artifacts (`manifest.json`, `semantic_manifest.json`) are generated automatically at container startup — no need to compile them before building the image.
 
@@ -228,7 +231,7 @@ The dbt artifacts (`manifest.json`, `semantic_manifest.json`) are generated auto
 health-gen-ai-chat/
 ├── pyproject.toml                            # project metadata & dependencies (uv)
 ├── uv.lock                                   # locked dependency graph
-├── docker-compose.yml                        # Docker Compose — builds and runs the app
+├── docker-compose.yml                        # Docker Compose — builds and runs the app + Streamlit
 ├── .env.example                              # environment variable template
 ├── docker/
 │   └── Dockerfile                            # container image for the FastAPI server
@@ -252,6 +255,7 @@ health-gen-ai-chat/
 │   └── chat_agent/                           # LLM agent + web UI
 │       ├── main.py                           # terminal chat agent
 │       ├── server.py                         # FastAPI HTTP server for the web UI
+│       ├── streamlit_dashboard.py            # Streamlit dashboard renderer, embedded per-message
 │       └── index.html                        # browser chat UI
 └── docs/
     ├── how-to-use.md                         # end-to-end setup guide
@@ -268,7 +272,7 @@ health-gen-ai-chat/
 |---|---|---|
 | `mcp_semantic_healh_gen_ai_chat` | `dbt_core_semantic_layer` | `list_local_metrics`, `get_dimensions_by_semantic_model`, `get_model_lineage`, `get_table_columns` |
 | `mcp_exec_health_gen_ai_chat` | `mysql_execution_engine` | `execute_read_query` |
-| `mcp_visualization_health_gen_ai_chat` | `DashboardEngine` | `generate_vega_chart` |
+| `mcp_visualization_health_gen_ai_chat` | `DashboardEngine` | `get_system_capabilities`, `recommend_visualization`, `validate_chart`, `check_memory`, `build_dashboard` |
 
 See the [`docs/`](docs/) folder for full reference documentation on each server.
 
@@ -310,6 +314,6 @@ uv run <command>          # no need to activate the venv manually
 | `RuntimeError: Missing required env vars: MYSQL_HOST …` | Set `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` in `.env` |
 | `pymysql.err.OperationalError` | Check values of `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`; confirm the MySQL user has `SELECT` on both source schemas |
 | `anthropic.APIError: authentication_error` | Check `ANTHROPIC_API_KEY` is set and valid |
-| Charts don't render | Ensure the browser can reach `cdn.jsdelivr.net` (Vega/vega-embed CDN) |
+| Dashboards don't render | Confirm the Streamlit process is running on port 8501 and `CHAT_API_BASE_URL` points at the chat backend |
 
 For detailed setup instructions see [docs/how-to-use.md](docs/how-to-use.md).

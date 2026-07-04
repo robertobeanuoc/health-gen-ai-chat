@@ -62,14 +62,14 @@ async def add_message(
     session_id: str,
     role: str,
     content: str,
-    vega_spec: dict | None = None,
+    dashboard: dict | None = None,
 ) -> Message:
     message = Message(
         id=str(uuid.uuid4()),
         session_id=session_id,
         role=role,
         content=content,
-        vega_spec=vega_spec,
+        dashboard=dashboard,
     )
     db.add(message)
 
@@ -82,6 +82,10 @@ async def add_message(
     await db.commit()
     await db.refresh(message)
     return message
+
+
+async def get_message(db: AsyncSession, message_id: str) -> Message | None:
+    return await db.get(Message, message_id)
 
 
 async def get_session_history(db: AsyncSession, session_id: str) -> list[dict]:

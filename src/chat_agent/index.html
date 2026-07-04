@@ -4,9 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Health Gen AI Chat</title>
-  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
@@ -224,6 +221,13 @@
       overflow: hidden;
     }
 
+    .message.assistant .chart-container iframe {
+      display: block;
+      width: 100%;
+      height: 640px;
+      border: none;
+    }
+
     .message.error {
       background: #3d1f1f;
       border: 1px solid #6e3030;
@@ -394,6 +398,9 @@
 <script>
   marked.use({ gfm: true, breaks: false });
 
+  // Base URL of the Streamlit dashboard renderer (src/chat_agent/streamlit_dashboard.py).
+  const STREAMLIT_URL = "http://localhost:8501";
+
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
@@ -486,7 +493,7 @@
     chatWindow.scrollTop = chatWindow.scrollHeight;
   }
 
-  function appendMessage(role, text, vegaSpec = null) {
+  function appendMessage(role, text, dashboard = null, messageId = null) {
     emptyState.style.display = "none";
     const div = document.createElement("div");
     div.className = `message ${role}`;
@@ -496,19 +503,16 @@
       div.textContent = text;
     }
 
-    if (vegaSpec) {
+    // A dashboard is rendered by a dedicated Streamlit iframe scoped to this
+    // message's id, so a session can accumulate any number of dashboards —
+    // each assistant message gets its own.
+    if (dashboard && messageId) {
       const chartDiv = document.createElement("div");
       chartDiv.className = "chart-container";
-      chartDiv.style.width = "100%";
-      chartDiv.style.minHeight = "300px";
+      const iframe = document.createElement("iframe");
+      iframe.src = `${STREAMLIT_URL}/?embed=true&message_id=${encodeURIComponent(messageId)}`;
+      chartDiv.appendChild(iframe);
       div.appendChild(chartDiv);
-      requestAnimationFrame(() => {
-        vegaEmbed(chartDiv, vegaSpec, { actions: false, theme: "quartz" }).catch(err => {
-          chartDiv.textContent = `Chart render error: ${err.message}`;
-          chartDiv.style.color = "#f97583";
-          chartDiv.style.padding = "8px";
-        });
-      });
     }
 
     chatWindow.appendChild(div);
@@ -536,7 +540,7 @@
     emptyState.style.display = "none";
 
     for (const msg of data.messages) {
-      appendMessage(msg.role, msg.content, msg.vega_spec ?? null);
+      appendMessage(msg.role, msg.content, msg.dashboard ?? null, msg.id);
     }
 
     if (data.messages.length === 0) {
@@ -580,8 +584,7 @@
       chatWindow.removeChild(thinking);
 
       const reply = data.reply ?? "";
-      const vegaSpec = data.vega_spec ?? null;
-      appendMessage("assistant", reply || "(no text response)", vegaSpec);
+      appendMessage("assistant", reply || "(no text response)", data.dashboard ?? null, data.message_id ?? null);
 
       // Update sidebar title if this was the first message
       await refreshSidebar();

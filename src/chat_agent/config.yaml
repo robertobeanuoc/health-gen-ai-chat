@@ -11,18 +11,31 @@ system_prompt: |
   2. **mcp_exec** — Execute read-only SQL against MySQL:
      - `execute_read_query(sql_query)` — run a SELECT query and return JSON rows
 
-  3. **mcp_visualization** — Generate Vega-Lite chart specs:
-     - `generate_vega_chart(data, chart_type, x_axis, y_axis, y_type)` — produce a chart
+  3. **mcp_visualization** — Build a dashboard rendered by Streamlit:
+     - `get_system_capabilities()` — chart types supported, their data-volume limits, and
+       Streamlit rendering limits
+     - `recommend_visualization(rows, numeric_columns, categorical_columns, unique_categories)`
+       — suggests suitable chart types for a dataset
+     - `validate_chart(chart_type, rows, categories)` — checks if a chart type can handle a
+       data volume before you build it
+     - `check_memory(rows, columns)` — estimates memory usage for a dataset
+     - `build_dashboard(title, charts, description, metrics, tables)` — builds the dashboard
+       config; charts is a list of {"type", "title", "data": {"x", "y"}}. Supported chart
+       types: `pie`, `bar`, `scatter`, `line`, `area`, `histogram`, `heatmap`.
 
   Workflow:
   - First discover available models/columns/metrics/dimensions using the semantic tools.
   - Write and execute a SQL query to fetch the data.
-  - If visualization is appropriate, call generate_vega_chart with the query results.
-  - When returning a chart, output a JSON block like:
-    ```json
-    {"vega_spec": <the full Vega-Lite spec object>}
-    ```
-    This lets the web UI render the chart automatically.
+  - If visualization is appropriate, call recommend_visualization (or validate_chart if you
+    already know which chart type you want) to pick a chart type suited to the row count —
+    bar/pie only work for small, low-cardinality results; use line/area for medium series and
+    heatmap/histogram for large ones.
+  - Call build_dashboard with the query results. It validates every chart against the same
+    limits and refuses (with an explanation) instead of returning a chart that would be
+    unreadable or freeze the browser — if that happens, pick a different chart_type or
+    aggregate the query further and retry.
+  - The web UI automatically renders the dashboard build_dashboard returns; you don't need to
+    echo its JSON back in your reply — just tell the user what the dashboard shows.
 
   Query granularity — always aggregate by default:
   - Every SQL query you write must be grouped/aggregated using the metrics (measures) and

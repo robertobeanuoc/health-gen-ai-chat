@@ -13,3 +13,16 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-haiku-4-5-20251001}
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      - app
+    ports:
+      - "8501:8501"
+    environment:
+      - CHAT_API_BASE_URL=http://app:8000
+    entrypoint: []
+    command: ["uv", "run", "streamlit", "run", "src/chat_agent/streamlit_dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]

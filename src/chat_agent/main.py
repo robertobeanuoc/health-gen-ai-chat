@@ -5,13 +5,15 @@ Health Gen AI Chat Agent
 Connects Claude Opus to three MCP servers:
   - mcp_semantic: dbt semantic layer (list metrics, dimensions, columns)
   - mcp_exec:     read-only MySQL query execution
-  - mcp_visualization: Vega-Lite chart generation
+  - mcp_visualization: dashboard building (capabilities, recommendations, validation)
 
 Run:
     ANTHROPIC_API_KEY=... MYSQL_ALCHEMY_URI=... python -m src.chat_agent.main
 
-The agent prints a JSON block with key "vega_spec" when it produces a chart.
-The companion index.html detects this and renders it with vega-embed.
+When the agent calls build_dashboard, the server persists the resulting
+dashboard config on the assistant message. The companion index.html embeds a
+Streamlit iframe (src/chat_agent/streamlit_dashboard.py) that fetches and
+renders it.
 """
 
 import asyncio

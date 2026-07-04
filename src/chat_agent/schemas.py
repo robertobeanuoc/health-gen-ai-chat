@@ -7,7 +7,7 @@ class MessageOut(BaseModel):
     id: str
     role: str
     content: str
-    vega_spec: dict | None
+    dashboard: dict | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -45,4 +45,5 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    vega_spec: dict | None = None
+    message_id: str
+    dashboard: dict | None = None
