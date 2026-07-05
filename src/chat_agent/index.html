@@ -214,18 +214,24 @@
       align-self: flex-start;
     }
 
-    .message.assistant .chart-container {
+    .message.assistant .dashboard-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       margin-top: 14px;
-      background: #fff;
+      padding: 10px 16px;
+      background: #1f6feb1a;
+      border: 1px solid #1f6feb66;
       border-radius: 6px;
-      overflow: hidden;
+      color: #58a6ff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.15s ease;
     }
 
-    .message.assistant .chart-container iframe {
-      display: block;
-      width: 100%;
-      height: 640px;
-      border: none;
+    .message.assistant .dashboard-link:hover {
+      background: #1f6feb33;
     }
 
     .message.error {
@@ -503,16 +509,18 @@
       div.textContent = text;
     }
 
-    // A dashboard is rendered by a dedicated Streamlit iframe scoped to this
-    // message's id, so a session can accumulate any number of dashboards —
-    // each assistant message gets its own.
+    // Each assistant message that built a dashboard links out to its own
+    // Streamlit page (scoped by message_id) instead of embedding an iframe —
+    // full browser real estate renders charts far more usefully than a
+    // cramped in-chat frame.
     if (dashboard && messageId) {
-      const chartDiv = document.createElement("div");
-      chartDiv.className = "chart-container";
-      const iframe = document.createElement("iframe");
-      iframe.src = `${STREAMLIT_URL}/?embed=true&message_id=${encodeURIComponent(messageId)}`;
-      chartDiv.appendChild(iframe);
-      div.appendChild(chartDiv);
+      const link = document.createElement("a");
+      link.className = "dashboard-link";
+      link.href = `${STREAMLIT_URL}/?message_id=${encodeURIComponent(messageId)}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = `📊 Ver dashboard: ${dashboard.title || "Dashboard"}`;
+      div.appendChild(link);
     }
 
     chatWindow.appendChild(div);
