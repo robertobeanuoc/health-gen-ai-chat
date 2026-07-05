@@ -8,7 +8,7 @@ config(
 
 SELECT 
     activity_id,
-    "name",
+    `name`,
     activity_type,
     sport_type,
     start_date,

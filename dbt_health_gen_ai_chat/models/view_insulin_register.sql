@@ -7,7 +7,7 @@ config(
 SELECT 
 
     uuid,
-    "timestamp",
+    `timestamp`,
     timestamp_year,
     timestamp_month,
     timestamp_day,

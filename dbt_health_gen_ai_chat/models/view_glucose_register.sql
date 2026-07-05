@@ -8,9 +8,9 @@
 SELECT 
 
     uuid,
-    "timestamp" as "glucose_timestamp",    
-    HOUR("timestamp") AS "glucose_timestamp_hour",
-    DATE("timestamp") AS "glucose_timestamp_day",
+    `timestamp` as glucose_timestamp,
+    HOUR(`timestamp`) AS glucose_timestamp_hour,
+    DATE(`timestamp`) AS glucose_timestamp_day,
     glucose_value,
     sensor_scan
 
