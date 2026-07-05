@@ -52,18 +52,44 @@ def _validate_select_query(sql_query: str) -> str | None:
     string-prefix guessing.
     """
     try:
-        parsed = sqlglot.parse_one(sql_query, dialect="mysql")
+        statements = sqlglot.parse(sql_query, dialect="mysql")
     except ParseError as exc:
         return f"SQL parse error: {exc}"
 
-    if not isinstance(parsed, exp.Select):
+    if len(statements) != 1:
+        return "Security error: only single, read-only SELECT statements are allowed (got multiple statements)."
+
+    parsed = statements[0]
+
+    # Allow CTEs / set operations as long as the overall statement is read-only.
+    forbidden_roots = (
+        exp.Insert,
+        exp.Update,
+        exp.Delete,
+        exp.Drop,
+        exp.Alter,
+        exp.Create,
+        exp.Truncate,
+        exp.Grant,
+        exp.Revoke,
+        exp.Replace,
+        exp.Show,
+        exp.Describe,
+        exp.Command,
+    )
+    if isinstance(parsed, forbidden_roots) or any(parsed.find(cls) for cls in forbidden_roots):
+        return "Security error: only single, read-only SELECT statements are allowed."
+
+    if parsed.find(exp.Select) is None:
         return (
             f"Security error: only single, read-only SELECT statements are allowed "
             f"(got '{type(parsed).__name__}')."
         )
 
     for table in parsed.find_all(exp.Table):
-        if table.db.lower() in _FORBIDDEN_SCHEMAS or table.name.lower() in _FORBIDDEN_SCHEMAS:
+        db = (table.db or "").lower()
+        name = (table.name or "").lower()
+        if db in _FORBIDDEN_SCHEMAS or name in _FORBIDDEN_SCHEMAS:
             return (
                 "Security error: querying database-structure schemas (information_schema, "
                 "performance_schema, mysql, sys) directly is not allowed. Use the mcp_semantic "
