@@ -405,7 +405,10 @@
   marked.use({ gfm: true, breaks: false });
 
   // Base URL of the Streamlit dashboard renderer (src/chat_agent/streamlit_dashboard.py).
-  const STREAMLIT_URL = "http://localhost:8501";
+  // Built from the host the browser used to reach this page — not hardcoded to
+  // localhost — so it also works when the chat UI is opened from another device
+  // on the network (docker-compose publishes Streamlit on the same host, port 8501).
+  const STREAMLIT_URL = `${window.location.protocol}//${window.location.hostname}:8501`;
 
   // ---------------------------------------------------------------------------
   // State
