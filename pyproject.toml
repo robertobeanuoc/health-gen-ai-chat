@@ -43,4 +43,9 @@ packages = [
 [tool.uv]
 
 [tool.uv.sources]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
 # All packages come from PyPI — no local path or git overrides needed.
