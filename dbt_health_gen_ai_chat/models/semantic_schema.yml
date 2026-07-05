@@ -9,19 +9,18 @@ semantic_models:
         type: primary
 
     dimensions:
-      - name: timestamp
+      - name: glucose_timestamp
         type: time
         description: "The timestamp when the record was recorded"
 
-      - name: timestamp_day
-        type: time
-        type_params:
-          time_granularity: day
-        description: "The timestamp when the record was recorded"
-
-      - name: timestamp_hour
+      - name: glucose_timestamp_hour
         type: categorical
-        description: "The timestamp when the record was recorded"
+        description: "The timestamp hour when the record was recorded"
+
+      - name: glucose_timestamp_day
+        type: categorical
+        description: "The timestamp day when the record was recorded"
+
       
       - name: sensor_scan
         type: categorical

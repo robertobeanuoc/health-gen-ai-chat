@@ -11,7 +11,7 @@ SELECT
     row_created_at,
     row_updated_at,
     "timestamp" as "glucose_timestamp",    
-    HOUR("timestamp") AS "glucose_time_hour",
+    HOUR("timestamp") AS "glucose_timestamp_hour",
     DATE("timestamp") AS "glucose_timestamp_day",
     glucose_value,
     sensor_scan
