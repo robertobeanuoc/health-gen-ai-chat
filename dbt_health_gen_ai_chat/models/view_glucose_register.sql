@@ -10,9 +10,9 @@ SELECT
     uuid,
     row_created_at,
     row_updated_at,
-    "timestamp",    
-    HOUR("timestamp") AS "timehour",
-    DATE("timestamp") AS "timestamp_day",
+    "timestamp" as "glucose_timestamp",    
+    HOUR("timestamp") AS "glucose_time_hour",
+    DATE("timestamp") AS "glucose_timestamp_day",
     glucose_value,
     sensor_scan
 
