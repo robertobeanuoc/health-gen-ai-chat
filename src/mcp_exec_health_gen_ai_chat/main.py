@@ -61,7 +61,7 @@ def execute_read_query(sql_query: str) -> str:
     Executes read-only SQL statements (DQL) on the MySQL database engine.
     Accepts any valid SELECT query generated from the semantic layer.
     """
-    logger.info("execute_read_query called | query_chars=%d", len(sql_query))
+    logger.info("execute_read_query called | sql=%s", sql_query)
 
     # Strict restriction on write or structural modification commands
     check_query = sql_query.upper()
@@ -93,7 +93,7 @@ def execute_read_query(sql_query: str) -> str:
             return json.dumps(fetched, default=str, ensure_ascii=False)
 
     except SQLAlchemyError as e:
-        logger.exception("execute_read_query failed | query_chars=%d", len(sql_query))
+        logger.exception("execute_read_query failed | sql=%s", sql_query)
         return f"Execution error in MySQL database: {str(e)}"
 
 if __name__ == "__main__":
