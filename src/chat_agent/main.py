@@ -87,7 +87,7 @@ async def run_agent_turn(
     while True:
         response = await client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=4096,
+            max_tokens=16000,
             system=get_system_prompt(),
             messages=messages,
             tools=tools,
@@ -176,7 +176,7 @@ async def main_mcp():
             try:
                 runner = client.beta.messages.tool_runner(
                     model="claude-sonnet-4-6",
-                    max_tokens=4096,
+                    max_tokens=16000,
                     system=get_system_prompt(),
                     messages=messages,
                     tools=tools,

@@ -67,6 +67,7 @@ from .schemas import (
     UpdateSessionRequest,
 )
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 _HERE = Path(__file__).parent
@@ -143,16 +144,44 @@ async def _mcp_tools():
         ),
     ]
 
+    # `runner.until_done()` only returns the final assistant message — the tool_use/
+    # tool_result exchange for build_dashboard happens on an earlier round and is never
+    # part of that message's own content blocks, so it can't be recovered after the fact.
+    # Wrapping each session's call_tool lets us capture the dashboard config as soon as
+    # build_dashboard actually runs, regardless of which round it happened on.
+    captured: dict = {"dashboard": None}
+
+    def _wrap_call_tool(session: ClientSession) -> None:
+        original_call_tool = session.call_tool
+
+        async def wrapped_call_tool(name, arguments=None, **kwargs):
+            result = await original_call_tool(name, arguments=arguments, **kwargs)
+            if name == "build_dashboard" and not result.isError:
+                for item in result.content:
+                    text = getattr(item, "text", None)
+                    if not text:
+                        continue
+                    try:
+                        parsed = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if _is_dashboard(parsed):
+                        captured["dashboard"] = parsed
+            return result
+
+        session.call_tool = wrapped_call_tool
+
     async with AsyncExitStack() as stack:
         tools = []
         for server_def in server_defs:
             read, write = await stack.enter_async_context(stdio_client(server_def))
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
+            _wrap_call_tool(session)
             result = await session.list_tools()
             for t in result.tools:
                 tools.append(async_mcp_tool(t, session))
-        yield tools
+        yield tools, captured
 
 
 def _is_dashboard(obj) -> bool:
@@ -284,10 +313,10 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
 
     try:
         model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
-        async with _mcp_tools() as tools:
+        async with _mcp_tools() as (tools, captured):
             runner = client.beta.messages.tool_runner(
                 model=model,
-                max_tokens=4096,
+                max_tokens=16000,
                 system=get_system_prompt(),
                 messages=history,
                 tools=tools,
@@ -318,7 +347,7 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
 
     text_parts = [b.text for b in message.content if hasattr(b, "text") and b.type == "text"]
     reply = "\n".join(text_parts)
-    dashboard = _extract_dashboard(message.content)
+    dashboard = captured["dashboard"] or _extract_dashboard(message.content)
 
     await add_message(db, req.session_id, "user", req.content)
     assistant_message = await add_message(db, req.session_id, "assistant", reply, dashboard=dashboard)

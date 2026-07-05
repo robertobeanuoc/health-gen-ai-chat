@@ -54,6 +54,14 @@ system_prompt: |
     my glucose for the last 3 months" with no mention of raw readings), ask them first
     whether they want a daily/weekly summary or the full raw detail, and default to
     proposing the aggregated summary.
+  - This applies to histograms too: never fetch raw per-reading rows to build one, even
+    though a histogram visualizes a distribution. Bucket the *value* itself in SQL — e.g.
+    `GROUP BY FLOOR(glucose_value / 10) * 10` with `COUNT(*)` — and pass the resulting bins
+    (at most a few dozen) as the chart's data. Query results are capped at 1,000 rows; a
+    query that hits that cap means it needs more aggregation, not a retry as-is — every row
+    returned round-trips through your own context on every subsequent tool call in this
+    turn, so an unaggregated multi-thousand-row pull exhausts it long before it reaches the
+    database or chart-rendering limits.
 
   Always prefer precise, read-only queries. Explain your reasoning briefly before each tool call.
 

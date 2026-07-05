@@ -19,6 +19,15 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP("mysql_execution_engine")
 
+# Query results flow back into the LLM's own context (as a tool_result) and get
+# resent on every subsequent tool-calling round of the same chat turn, so an
+# unaggregated result of even a few tens of thousands of rows can blow past the
+# model's context window well before it blows up any chart-rendering limit.
+# This caps rows returned to the LLM, independent of the SQL it wrote — it must
+# aggregate or bucket further (e.g. GROUP BY a time bucket or value range)
+# rather than pulling raw per-record data at this scale.
+MAX_RESULT_ROWS = 1000
+
 _engine = None
 
 
@@ -67,10 +76,21 @@ def execute_read_query(sql_query: str) -> str:
             result = connection.execute(text(sql_query))
 
             columns = result.keys()
-            rows = [dict(zip(columns, row)) for row in result.fetchall()]
+            fetched = [dict(zip(columns, row)) for row in result.fetchmany(MAX_RESULT_ROWS + 1)]
 
-            logger.info("execute_read_query succeeded | rows=%d", len(rows))
-            return json.dumps(rows, default=str, ensure_ascii=False)
+            if len(fetched) > MAX_RESULT_ROWS:
+                logger.warning("execute_read_query truncated — exceeds row cap | query_chars=%d", len(sql_query))
+                return json.dumps({
+                    "error": (
+                        f"Query returned more than {MAX_RESULT_ROWS} rows. Aggregate or bucket the "
+                        "data further in SQL (e.g. GROUP BY a time bucket or a value range) instead "
+                        "of fetching raw per-record data at this scale."
+                    ),
+                    "row_limit": MAX_RESULT_ROWS,
+                }, ensure_ascii=False)
+
+            logger.info("execute_read_query succeeded | rows=%d", len(fetched))
+            return json.dumps(fetched, default=str, ensure_ascii=False)
 
     except SQLAlchemyError as e:
         logger.exception("execute_read_query failed | query_chars=%d", len(sql_query))
