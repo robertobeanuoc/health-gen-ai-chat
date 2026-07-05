@@ -12,10 +12,10 @@ Chat Agent  ─── Claude API  (Opus 4.8 in terminal · Haiku 4.5 default in 
       │
       ├── MCP: mcp_semantic   → dbt artifact reader (metrics, columns, lineage)
       ├── MCP: mcp_exec       → read-only MySQL query runner
-      └── MCP: mcp_visualization → Vega-Lite chart generator
+      └── MCP: mcp_visualization → dashboard builder (Streamlit renders it)
 ```
 
-The three MCP servers run as child processes of the chat agent. You only need to start the agent — it manages the rest.
+The three MCP servers run as child processes of the chat agent. You only need to start the agent — it manages the rest. The web UI additionally embeds a separate Streamlit process to render dashboards; see [Step 6 — Use the web UI](#step-6--use-the-web-ui) below.
 
 ---
 
@@ -143,7 +143,7 @@ You:
 Type any question about your health data. The agent will:
 1. Call the semantic tools to discover available models and columns.
 2. Write and execute a SQL query.
-3. If appropriate, generate a chart and print the Vega-Lite spec.
+3. If appropriate, build a dashboard via `build_dashboard` (terminal mode has no Streamlit renderer attached, so you'll see the raw dashboard JSON printed).
 
 Type `quit`, `exit`, or `q` to stop. Press `Ctrl+C` to exit immediately.
 
@@ -151,15 +151,16 @@ Type `quit`, `exit`, or `q` to stop. Press `Ctrl+C` to exit immediately.
 
 ## Step 6 — Use the web UI
 
-The web UI (`src/chat_agent/index.html`) is a responsive HTML chat interface that works on desktop, tablet, and mobile — on narrow screens the session sidebar becomes a slide-in drawer. It talks to `POST /api/chat` and renders Vega-Lite charts inline. The FastAPI server (`src/chat_agent/server.py`) is included in the repo and its dependencies (`fastapi`, `uvicorn`) are already part of the project.
+The web UI (`src/chat_agent/index.html`) is a responsive HTML chat interface that works on desktop, tablet, and mobile — on narrow screens the session sidebar becomes a slide-in drawer. It talks to `POST /api/chat`, and for any assistant message that built a dashboard, embeds a Streamlit iframe scoped to that message's id — a session can accumulate any number of dashboards this way. The FastAPI server (`src/chat_agent/server.py`) is included in the repo and its dependencies (`fastapi`, `uvicorn`) are already part of the project.
 
-Start the server:
+Start both processes:
 
 ```bash
 uv run uvicorn src.chat_agent.server:app --reload --port 8000
+uv run streamlit run src/chat_agent/streamlit_dashboard.py --server.port 8501
 ```
 
-Open your browser at `http://localhost:8000` — the chat UI loads and charts are rendered inline.
+Open your browser at `http://localhost:8000` — the chat UI loads and dashboards are rendered inline via the Streamlit app running on port 8501. Don't open `http://localhost:8501` directly — it only renders a specific message's dashboard, addressed by the `message_id` query param the chat UI passes in.
 
 The model defaults to `claude-haiku-4-5-20251001`; set `CLAUDE_MODEL` in `.env` to use a different thinking-capable model (e.g. `claude-sonnet-4-6` or `claude-opus-4-8`).
 
@@ -180,7 +181,7 @@ If you prefer not to install Python or uv locally, you can run the web server in
 docker compose up --build
 ```
 
-The app is available at `http://localhost:8000`.
+The app is available at `http://localhost:8000`, and the Streamlit dashboard renderer (embedded by the chat UI) at `http://localhost:8501`.
 
 > **Note:** `MYSQL_HOST` must be your host's IP address (or a Docker network hostname) instead of `localhost` so the container can reach the database. The dbt artifacts are generated automatically at container startup — no manual `dbt compile` step needed.
 
@@ -267,8 +268,8 @@ When you ask a question the agent follows a consistent pattern:
 1. **Discover** — calls `list_local_metrics()` and `get_dimensions_by_semantic_model()` to understand available data.
 2. **Inspect** — calls `get_table_columns(model_name)` to get exact column names.
 3. **Query** — writes a SQL `SELECT` and calls `execute_read_query(sql)`.
-4. **Visualize** — if the answer suits a chart, calls `generate_vega_chart(data, ...)` and wraps the result in `{"vega_spec": ...}`.
-5. **Explain** — returns a plain-language explanation alongside the data or chart.
+4. **Visualize** — if the answer suits a chart, calls `recommend_visualization`/`validate_chart` to pick a chart type the data volume can support, then `build_dashboard(...)` to produce the dashboard config.
+5. **Explain** — returns a plain-language explanation alongside the data or dashboard.
 
 You can ask follow-up questions within the same session — the conversation history is preserved, so you can say things like "now filter that to just sensor scans" and the agent will remember the previous query context.
 
@@ -294,11 +295,12 @@ Set `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE` in `.env`
 
 Check that `ANTHROPIC_API_KEY` is set and valid.
 
-### Charts do not render in the browser
+### Dashboards do not render in the browser
 
-- Ensure the browser can reach the CDN links for Vega, Vega-Lite, and vega-embed (they are loaded from `cdn.jsdelivr.net`).
-- Check the browser console for JavaScript errors.
-- Verify the assistant's reply contains a `vega_spec` JSON block (the UI detects it automatically).
+- Confirm the Streamlit process is running (`uv run streamlit run src/chat_agent/streamlit_dashboard.py --server.port 8501`) and reachable at `http://localhost:8501`.
+- Check that `CHAT_API_BASE_URL` (Streamlit) points at the FastAPI server — default `http://localhost:8000` works for local, non-Docker runs.
+- Check the browser console for iframe/network errors.
+- Verify the assistant's tool calls actually reached `build_dashboard` (a rejected/invalid chart returns an error instead of a dashboard — see the agent's tool-call log).
 
 ---
 
@@ -309,7 +311,7 @@ health-gen-ai-chat/
 ├── README.md                               # project overview & quick start
 ├── pyproject.toml                          # package metadata & dependencies (uv)
 ├── uv.lock                                 # locked dependency graph
-├── docker-compose.yml                      # Docker Compose — builds and runs the app
+├── docker-compose.yml                      # Docker Compose — builds and runs the app + Streamlit
 ├── .env.example                            # environment variable template
 ├── docker/
 │   └── Dockerfile                          # container image for the FastAPI server
@@ -334,6 +336,7 @@ health-gen-ai-chat/
 │   └── chat_agent/                         # LLM agent + web UI
 │       ├── main.py                         # terminal chat agent
 │       ├── server.py                       # FastAPI HTTP server for the web UI
+│       ├── streamlit_dashboard.py          # Streamlit dashboard renderer, embedded per-message
 │       └── index.html                      # browser chat UI
 └── docs/
     ├── how-to-use.md                       # this file
@@ -349,6 +352,5 @@ health-gen-ai-chat/
 - [dbt_health_gen_ai_chat/README.md](../dbt_health_gen_ai_chat/README.md) — dbt project, data sources, semantic layer
 - [MCP Semantic Server](./mcp-semantic.md) — tool reference, data sources, semantic models
 - [MCP Exec Server](./mcp-exec.md) — SQL execution, security, connection pooling
-- [MCP Visualization Server](./mcp-visualization.md) — chart types, Vega-Lite spec format, rendering
-- [Vega-Lite documentation](https://vega.github.io/vega-lite/docs/)
+- [MCP Visualization Server](./mcp-visualization.md) — chart types, capability limits, dashboard schema, rendering
 - [Anthropic MCP client beta](https://docs.anthropic.com/en/docs/agents-and-tools/mcp)

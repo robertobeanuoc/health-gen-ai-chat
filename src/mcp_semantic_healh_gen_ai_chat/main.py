@@ -48,6 +48,19 @@ def _resolve_semantic_model_alias(name: str) -> str | None:
             return sm.get("node_relation", {}).get("alias")
     return None
 
+
+def _find_model_wrapping_source(source_id: str, nodes: dict) -> dict | None:
+    """
+    Raw source tables (e.g. "glucose_register") live in the connector's own
+    schema and are not queryable through mcp_exec — only the dbt view built
+    on top of them (e.g. "view_glucose_register") is. Given a source node id,
+    finds the dbt model whose `depends_on` references it.
+    """
+    for node_info in nodes.values():
+        if node_info.get("resource_type") == "model" and source_id in node_info.get("depends_on", {}).get("nodes", []):
+            return node_info
+    return None
+
 @mcp.tool()
 def list_local_metrics() -> str:
     """
@@ -112,14 +125,25 @@ def get_model_lineage(model_name: str) -> str:
                 target_node = node_info
                 break
 
+        note = None
         if not target_node:
             # Also check sources — the LLM may pass the raw source table name
             # (e.g. "glucose_register") instead of the model that wraps it
-            # (e.g. "view_glucose_register").
+            # (e.g. "view_glucose_register"). Raw sources live in the
+            # connector's own schema and aren't queryable through mcp_exec,
+            # so redirect to the dbt model built on top of the source.
             sources = data.get("sources", {})
             for src_id, src_info in sources.items():
                 if src_info.get("name") == model_name:
-                    target_node = src_info
+                    wrapping_model = _find_model_wrapping_source(src_id, nodes)
+                    if wrapping_model:
+                        target_node = wrapping_model
+                        note = (
+                            f"'{model_name}' is a raw source table and is not directly queryable. "
+                            f"Redirected to the dbt model '{wrapping_model.get('name')}' built on top of it — use that name in SQL."
+                        )
+                    else:
+                        target_node = src_info
                     break
 
         if not target_node:
@@ -144,6 +168,8 @@ def get_model_lineage(model_name: str) -> str:
             "schema": target_node.get("schema"),
             "upstream_dependencies": target_node.get("depends_on", {}).get("nodes", [])
         }
+        if note:
+            lineage["note"] = note
         return json.dumps(lineage, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error("get_model_lineage failed | model_name=%s | error=%s", model_name, e)
@@ -166,12 +192,25 @@ def get_table_columns(model_name: str) -> str:
                 target_node = node_info
                 break
 
+        note = None
         if not target_node:
-            # Also check sources
+            # Also check sources — the LLM may pass the raw source table name
+            # (e.g. "glucose_register") instead of the model that wraps it
+            # (e.g. "view_glucose_register"). Raw sources live in the
+            # connector's own schema and aren't queryable through mcp_exec,
+            # so redirect to the dbt model built on top of the source.
             sources = data.get("sources", {})
             for src_id, src_info in sources.items():
                 if src_info.get("name") == model_name:
-                    target_node = src_info
+                    wrapping_model = _find_model_wrapping_source(src_id, nodes)
+                    if wrapping_model:
+                        target_node = wrapping_model
+                        note = (
+                            f"'{model_name}' is a raw source table and is not directly queryable. "
+                            f"Redirected to the dbt model '{wrapping_model.get('name')}' built on top of it — use that name in SQL."
+                        )
+                    else:
+                        target_node = src_info
                     break
 
         if not target_node:
@@ -191,7 +230,7 @@ def get_table_columns(model_name: str) -> str:
 
         columns = target_node.get("columns", {})
         result = {
-            "model": model_name,
+            "model": target_node.get("name"),
             "database": target_node.get("database"),
             "schema": target_node.get("schema"),
             "columns": [
@@ -199,6 +238,8 @@ def get_table_columns(model_name: str) -> str:
                 for col_name, col_info in columns.items()
             ]
         }
+        if note:
+            result["note"] = note
         return json.dumps(result, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error("get_table_columns failed | model_name=%s | error=%s", model_name, e)

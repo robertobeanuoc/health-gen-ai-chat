@@ -9,6 +9,7 @@ Serves:
   PATCH /api/sessions/{id}    — rename a session
   DELETE /api/sessions/{id}   — delete a session and its messages
   POST /api/chat              — send a message within a session
+  GET  /api/messages/{id}/dashboard — dashboard config for a message (used by Streamlit)
   GET  /                      — serves index.html and static assets
 
 Start:
@@ -49,6 +50,7 @@ from .crud import (
     add_message,
     create_session,
     delete_session,
+    get_message,
     get_session,
     get_session_history,
     list_sessions,
@@ -65,6 +67,7 @@ from .schemas import (
     UpdateSessionRequest,
 )
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 _HERE = Path(__file__).parent
@@ -141,22 +144,54 @@ async def _mcp_tools():
         ),
     ]
 
+    # `runner.until_done()` only returns the final assistant message — the tool_use/
+    # tool_result exchange for build_dashboard happens on an earlier round and is never
+    # part of that message's own content blocks, so it can't be recovered after the fact.
+    # Wrapping each session's call_tool lets us capture the dashboard config as soon as
+    # build_dashboard actually runs, regardless of which round it happened on.
+    captured: dict = {"dashboard": None}
+
+    def _wrap_call_tool(session: ClientSession) -> None:
+        original_call_tool = session.call_tool
+
+        async def wrapped_call_tool(name, arguments=None, **kwargs):
+            result = await original_call_tool(name, arguments=arguments, **kwargs)
+            if name == "build_dashboard" and not result.isError:
+                for item in result.content:
+                    text = getattr(item, "text", None)
+                    if not text:
+                        continue
+                    try:
+                        parsed = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if _is_dashboard(parsed):
+                        captured["dashboard"] = parsed
+            return result
+
+        session.call_tool = wrapped_call_tool
+
     async with AsyncExitStack() as stack:
         tools = []
         for server_def in server_defs:
             read, write = await stack.enter_async_context(stdio_client(server_def))
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
+            _wrap_call_tool(session)
             result = await session.list_tools()
             for t in result.tools:
                 tools.append(async_mcp_tool(t, session))
-        yield tools
+        yield tools, captured
 
 
-def _extract_vega_spec(content: list) -> dict | None:
+def _is_dashboard(obj) -> bool:
+    return isinstance(obj, dict) and "charts" in obj and "title" in obj and "error" not in obj
+
+
+def _extract_dashboard(content: list) -> dict | None:
     """
-    Scan all response content blocks for a generate_vega_chart tool result
-    and return the parsed Vega-Lite spec, or None if no chart was produced.
+    Scan all response content blocks for a build_dashboard tool result and
+    return the parsed dashboard config, or None if no dashboard was built.
     """
     for block in content:
         block_type = getattr(block, "type", None)
@@ -165,9 +200,9 @@ def _extract_vega_spec(content: list) -> dict | None:
             raw = getattr(block, "content", None) or getattr(block, "output", None)
             if isinstance(raw, str):
                 try:
-                    spec = json.loads(raw)
-                    if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
-                        return spec
+                    parsed = json.loads(raw)
+                    if _is_dashboard(parsed):
+                        return parsed
                 except (json.JSONDecodeError, TypeError):
                     pass
             elif isinstance(raw, list):
@@ -175,9 +210,9 @@ def _extract_vega_spec(content: list) -> dict | None:
                     text = getattr(item, "text", None) or (item.get("text") if isinstance(item, dict) else None)
                     if text:
                         try:
-                            spec = json.loads(text)
-                            if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
-                                return spec
+                            parsed = json.loads(text)
+                            if _is_dashboard(parsed):
+                                return parsed
                         except (json.JSONDecodeError, TypeError):
                             pass
 
@@ -185,11 +220,11 @@ def _extract_vega_spec(content: list) -> dict | None:
             text = getattr(block, "text", "")
             for match in re.finditer(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text):
                 try:
-                    spec = json.loads(match.group(1))
-                    if isinstance(spec, dict) and "$schema" in spec and "vega" in spec.get("$schema", ""):
-                        return spec
-                    if isinstance(spec, dict) and "vega_spec" in spec:
-                        return spec["vega_spec"]
+                    parsed = json.loads(match.group(1))
+                    if _is_dashboard(parsed):
+                        return parsed
+                    if isinstance(parsed, dict) and _is_dashboard(parsed.get("dashboard")):
+                        return parsed["dashboard"]
                 except (json.JSONDecodeError, TypeError):
                     pass
 
@@ -278,10 +313,10 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
 
     try:
         model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
-        async with _mcp_tools() as tools:
+        async with _mcp_tools() as (tools, captured):
             runner = client.beta.messages.tool_runner(
                 model=model,
-                max_tokens=4096,
+                max_tokens=16000,
                 system=get_system_prompt(),
                 messages=history,
                 tools=tools,
@@ -299,23 +334,35 @@ async def chat(req: ChatRequest, db=Depends(get_db)):
     usage = message.usage
     logger.info(
         "chat usage session=%s model=%s input_tokens=%d output_tokens=%d "
-        "cache_creation_input_tokens=%d cache_read_input_tokens=%d",
+        "cache_creation_input_tokens=%d cache_read_input_tokens=%d stop_reason=%s block_types=%s",
         req.session_id,
         model,
         usage.input_tokens,
         usage.output_tokens,
         getattr(usage, "cache_creation_input_tokens", 0) or 0,
         getattr(usage, "cache_read_input_tokens", 0) or 0,
+        message.stop_reason,
+        [getattr(b, "type", None) for b in message.content],
     )
 
     text_parts = [b.text for b in message.content if hasattr(b, "text") and b.type == "text"]
     reply = "\n".join(text_parts)
-    vega_spec = _extract_vega_spec(message.content)
+    dashboard = captured["dashboard"] or _extract_dashboard(message.content)
 
     await add_message(db, req.session_id, "user", req.content)
-    await add_message(db, req.session_id, "assistant", reply, vega_spec=vega_spec)
+    assistant_message = await add_message(db, req.session_id, "assistant", reply, dashboard=dashboard)
 
-    return ChatResponse(reply=reply, vega_spec=vega_spec)
+    return ChatResponse(reply=reply, message_id=assistant_message.id, dashboard=dashboard)
+
+
+@app.get("/api/messages/{message_id}/dashboard")
+async def get_message_dashboard(message_id: str, db=Depends(get_db)):
+    """Fetch a dashboard config by message id — used by the Streamlit renderer iframe."""
+    logger.debug("get_message_dashboard called | message_id=%s", message_id)
+    message = await get_message(db, message_id)
+    if not message or not message.dashboard:
+        raise HTTPException(status_code=404, detail="No dashboard for this message.")
+    return JSONResponse(content=message.dashboard)
 
 
 @app.get("/")
