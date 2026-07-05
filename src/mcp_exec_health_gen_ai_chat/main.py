@@ -69,7 +69,7 @@ def _validate_select_query(sql_query: str) -> str | None:
         exp.Drop,
         exp.Alter,
         exp.Create,
-        exp.Truncate,
+        exp.TruncateTable,
         exp.Grant,
         exp.Revoke,
         exp.Replace,
