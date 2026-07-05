@@ -15,12 +15,19 @@ Configuration:
     CHAT_API_BASE_URL — base URL of the FastAPI chat backend (default: http://localhost:8000)
 """
 
+import logging
 import os
+import sys
 
 import pandas as pd
 import plotly.express as px
 import requests
 import streamlit as st
+
+# stdout is Streamlit's own console output — logs go to stderr so they don't get
+# mixed into it, matching the convention used by the other project entrypoints.
+logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
 
@@ -30,10 +37,17 @@ CHAT_API_BASE_URL = os.getenv("CHAT_API_BASE_URL", "http://localhost:8000")
 @st.cache_data(ttl=None, show_spinner=False)
 def fetch_dashboard(message_id: str) -> dict | None:
     url = f"{CHAT_API_BASE_URL}/api/messages/{message_id}/dashboard"
-    response = requests.get(url, timeout=10)
+    logger.info("fetch_dashboard called | message_id=%s url=%s", message_id, url)
+    try:
+        response = requests.get(url, timeout=10)
+    except requests.RequestException:
+        logger.exception("fetch_dashboard failed to reach chat backend | message_id=%s url=%s", message_id, url)
+        raise
     if response.status_code == 404:
+        logger.warning("fetch_dashboard — no dashboard found | message_id=%s", message_id)
         return None
     response.raise_for_status()
+    logger.info("fetch_dashboard succeeded | message_id=%s status=%d", message_id, response.status_code)
     return response.json()
 
 
@@ -83,12 +97,14 @@ def render_charts(charts: list[dict]) -> None:
             elif chart_type == "heatmap":
                 fig = px.density_heatmap(x=x_data, y=y_data, title=title)
             else:
+                logger.warning("render_charts — unsupported chart type=%s title=%s", chart_type, title)
                 st.warning(f"Unsupported chart type: {chart_type}")
                 continue
 
             fig.update_layout(xaxis_title=None, margin=dict(l=10, r=10, t=40, b=10))
             st.plotly_chart(fig, use_container_width=True)
         except Exception as exc:
+            logger.exception("render_charts — failed to render chart | type=%s title=%s", chart_type, title)
             st.error(f"Error rendering '{title}': {exc}")
 
 
@@ -107,6 +123,7 @@ def render_tables(tables: list[dict]) -> None:
 
 
 message_id = st.query_params.get("message_id")
+logger.info("page load | message_id=%s", message_id)
 
 if not message_id:
     st.info("Waiting for a dashboard — pass ?message_id=<id> in the URL.")
@@ -114,12 +131,22 @@ else:
     try:
         config = fetch_dashboard(message_id)
     except requests.RequestException as exc:
+        logger.error("could not reach chat backend | message_id=%s base_url=%s error=%s", message_id, CHAT_API_BASE_URL, exc)
         st.error(f"Could not reach the chat backend at {CHAT_API_BASE_URL}: {exc}")
         config = None
 
     if config is None:
+        logger.warning("no dashboard to render | message_id=%s", message_id)
         st.info("No dashboard found for this message.")
     else:
+        logger.info(
+            "rendering dashboard | message_id=%s title=%s charts=%d metrics=%d tables=%d",
+            message_id,
+            config.get("title"),
+            len(config.get("charts", [])),
+            len(config.get("metrics", [])),
+            len(config.get("tables", [])),
+        )
         st.title(config.get("title", "Dashboard"))
         if config.get("description"):
             st.caption(config["description"])
