@@ -5,8 +5,11 @@ import json
 import sys
 from pathlib import Path
 
+import sqlglot
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+from sqlglot import exp
+from sqlglot.errors import ParseError
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 from sqlalchemy import create_engine, text
@@ -28,7 +31,48 @@ mcp = FastMCP("mysql_execution_engine")
 # rather than pulling raw per-record data at this scale.
 MAX_RESULT_ROWS = 1000
 
+# Schemas that expose database structure rather than application data — the dbt
+# semantic layer (mcp_semantic) is the only source of truth for table/column
+# names, so querying these directly would let the model bypass it.
+_FORBIDDEN_SCHEMAS = {"information_schema", "performance_schema", "mysql", "sys"}
+
 _engine = None
+
+
+def _validate_select_query(sql_query: str) -> str | None:
+    """
+    Parses sql_query with sqlglot (MySQL dialect) and returns an error message if
+    it isn't a single, safe read-only SELECT — or None if it's fine to execute.
+
+    Real parsing replaces fragile substring/keyword matching: a column named e.g.
+    "last_updated" can't false-positive on the substring "UPDATE", multi-statement
+    injection (`SELECT ...; DROP TABLE ...;`) is caught structurally as a Block
+    instead of by scanning for keywords, and schema-introspection statements
+    (SHOW, DESCRIBE) are identified by their real AST node type rather than by
+    string-prefix guessing.
+    """
+    try:
+        parsed = sqlglot.parse_one(sql_query, dialect="mysql")
+    except ParseError as exc:
+        return f"SQL parse error: {exc}"
+
+    if not isinstance(parsed, exp.Select):
+        return (
+            f"Security error: only single, read-only SELECT statements are allowed "
+            f"(got '{type(parsed).__name__}')."
+        )
+
+    for table in parsed.find_all(exp.Table):
+        if table.db.lower() in _FORBIDDEN_SCHEMAS or table.name.lower() in _FORBIDDEN_SCHEMAS:
+            return (
+                "Security error: querying database-structure schemas (information_schema, "
+                "performance_schema, mysql, sys) directly is not allowed. Use the mcp_semantic "
+                "tools (get_table_columns, get_model_lineage, get_dimensions_by_semantic_model) "
+                "instead — they are the source of truth for table and column names, not the "
+                "raw database schema."
+            )
+
+    return None
 
 
 def _build_url() -> URL:
@@ -63,13 +107,10 @@ def execute_read_query(sql_query: str) -> str:
     """
     logger.info("execute_read_query called | sql=%s", sql_query)
 
-    # Strict restriction on write or structural modification commands
-    check_query = sql_query.upper()
-    forbidden_keywords = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "GRANT", "REPLACE", "TRUNCATE"]
-
-    if any(keyword in check_query for keyword in forbidden_keywords):
-        logger.warning("execute_read_query rejected — forbidden keyword | query=%s", sql_query[:300])
-        return "Security error: Query contains forbidden keywords. Only SELECT processing is allowed."
+    validation_error = _validate_select_query(sql_query)
+    if validation_error:
+        logger.warning("execute_read_query rejected | reason=%s | sql=%s", validation_error, sql_query)
+        return validation_error
 
     try:
         with _get_engine().connect() as connection:

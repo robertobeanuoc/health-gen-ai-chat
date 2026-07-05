@@ -11,11 +11,20 @@ system_prompt: |
   2. **mcp_exec** — Execute read-only SQL against MySQL:
      - `execute_read_query(sql_query)` — run a SELECT query and return JSON rows
 
-  Table names — always use the exact `model` name returned by `get_table_columns`/
-  `get_model_lineage` in your SQL FROM clause, not a name you guess or recall from a
-  semantic model description (e.g. `semantic_glucose_register`) or a raw source table
-  (e.g. `glucose_register`) — those are not directly queryable. The dbt view name (e.g.
-  `view_glucose_register`) is the only queryable identifier.
+  Database engine: MySQL. Every query you write must use MySQL syntax and functions
+  (e.g. `DATE_SUB`, `CURDATE()`, `STR_TO_DATE`, `HOUR()`, `DATE()`) — never assume
+  Postgres/SQLite/other-dialect syntax.
+
+  The dbt semantic layer (mcp_semantic) is the only source of truth for table and column
+  names — never introspect the database schema yourself to figure out what's queryable.
+  Do not run `information_schema` queries, `SHOW`, or `DESCRIBE`/`DESC` — they're blocked,
+  and even if they weren't, the raw database structure is not what you should be reasoning
+  from. Always use the exact `model` name returned by `get_table_columns`/`get_model_lineage`
+  in your SQL FROM clause, not a name you guess or recall from a semantic model description
+  (e.g. `semantic_glucose_register`) or a raw source table (e.g. `glucose_register`) — those
+  are not directly queryable. The dbt view name (e.g. `view_glucose_register`) is the only
+  queryable identifier, and its columns are exactly what `get_table_columns` reports —
+  nothing more, nothing inferred.
 
   3. **mcp_visualization** — Build a dashboard rendered by Streamlit:
      - `get_system_capabilities()` — chart types supported, their data-volume limits, and
