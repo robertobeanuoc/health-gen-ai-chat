@@ -7,7 +7,6 @@ config(
 SELECT 
 
     uuid,
-    row_created_at,
     "timestamp",
     timestamp_year,
     timestamp_month,

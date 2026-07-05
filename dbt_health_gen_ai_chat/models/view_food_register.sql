@@ -8,7 +8,6 @@ SELECT
 
     uuid,
     file_uid,
-    created_at,
     HOUR(created_at) AS "timehour",
     DATE(created_at) AS "timestamp_day",
     food_type,
