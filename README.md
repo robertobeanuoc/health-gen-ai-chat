@@ -257,11 +257,18 @@ health-gen-ai-chat/
 │       ├── server.py                         # FastAPI HTTP server for the web UI
 │       ├── streamlit_dashboard.py            # Streamlit dashboard renderer, embedded per-message
 │       └── index.html                        # browser chat UI
-└── docs/
-    ├── how-to-use.md                         # end-to-end setup guide
-    ├── mcp-semantic.md                       # Semantic MCP server reference
-    ├── mcp-exec.md                           # Exec MCP server reference
-    └── mcp-visualization.md                  # Visualization MCP server reference
+├── docs/
+│   ├── how-to-use.md                         # end-to-end setup guide
+│   ├── mcp-semantic.md                       # Semantic MCP server reference
+│   ├── mcp-exec.md                           # Exec MCP server reference
+│   └── mcp-visualization.md                  # Visualization MCP server reference
+└── tests/                                    # pytest suite — see tests/README.md
+    ├── conftest.py
+    ├── test_dbt_semantic_coherence.py
+    ├── test_mcp_exec_validation.py
+    ├── test_streamlit_dashboard.py
+    ├── test_streamlit_server_e2e.py
+    └── test_streamlit_live_glucose_dashboard.py
 ```
 
 ---
@@ -275,6 +282,20 @@ health-gen-ai-chat/
 | `mcp_visualization_health_gen_ai_chat` | `DashboardEngine` | `get_system_capabilities`, `recommend_visualization`, `validate_chart`, `check_memory`, `build_dashboard` |
 
 See the [`docs/`](docs/) folder for full reference documentation on each server.
+
+---
+
+## Testing
+
+```bash
+uv run pytest tests/
+```
+
+Covers the dbt semantic layer's coherence (the most critical layer — everything else is built on
+top of it), the `mcp_exec` SQL validation guard, and the Streamlit dashboard renderer — including
+booting a real Streamlit server the same way `docker-compose.yml` does. See
+[`tests/README.md`](tests/README.md) for what each test file covers and how to view a live
+dashboard rendered from real data while a test runs (`--show-dashboard`).
 
 ---
 
