@@ -1,0 +1,58 @@
+version: 2
+
+metrics:
+  - name: glucose_value_average
+    label: "Average Glucose Value"
+    type: simple
+    type_params:
+      measure: glucose_value_average
+    description: "The average glucose value"
+
+  - name: insulin_value_average
+    label: "Average Insulin Value"
+    type: simple
+    type_params:
+      measure: insulin_value_average
+    description: "The average insulin value"
+
+  - name: insulin_value_sum
+    label: "Total Insulin Value"
+    type: simple
+    type_params:
+      measure: insulin_value_sum
+    description: "The total insulin value"
+
+  - name: distance_m_sum
+    label: "Total Distance (m)"
+    type: simple
+    type_params:
+      measure: distance_m_sum
+    description: "The total distance covered during the activity (in meters)"
+
+  - name: weight_grams_sum
+    label: "Total Food Weight (g)"
+    type: simple
+    type_params:
+      measure: weight_grams_sum
+    description: "The total weight of the food items consumed (in grams)"
+
+  - name: weight_grams_average
+    label: "Average Food Weight (g)"
+    type: simple
+    type_params:
+      measure: weight_grams_average
+    description: "The average weight of the food items consumed (in grams)"
+
+  - name: carbohydrate_weight_grams_sum
+    label: "Total Carbohydrate Weight (g)"
+    type: simple
+    type_params:
+      measure: carbohydrate_weight_grams_sum
+    description: "The total weight of carbohydrates consumed (in grams)"
+
+  - name: carbohydrate_weight_grams_average
+    label: "Average Carbohydrate Weight (g)"
+    type: simple
+    type_params:
+      measure: carbohydrate_weight_grams_average
+    description: "The average weight of carbohydrates consumed (in grams)"

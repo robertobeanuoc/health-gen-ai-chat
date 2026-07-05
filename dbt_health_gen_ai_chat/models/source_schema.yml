@@ -10,8 +10,6 @@ sources:
           - name: uuid
             description: "The unique identifier for each record"
             type: string
-          - name: row_created_at
-            description: "The identifier for the patient"
           - name: timestamp
             description: "The timestamp of the glucose measurement"
             type: datetime
@@ -26,8 +24,6 @@ sources:
           - name: uuid
             description: "The unique identifier for each record"
             type: string
-          - name: row_created_at
-            description: "The identifier for the patient"
           - name: timestamp
             description: "The timestamp of the insulin measurement"
           - name: timestamp_year
@@ -37,7 +33,8 @@ sources:
           - name: timestamp_day
             description: "The day of the timestamp"
           - name: timestamp_hour
-            type: datetime
+            description: "The hour of the timestamp"
+            type: int
           - name: insulin_value
             description: "The insulin level measurement"
             type: double
@@ -91,9 +88,6 @@ sources:
           - name: file_uid
             description: "The unique identifier for the file"
             type: string
-          - name: created_at
-            description: "The timestamp when the record was created"
-            type: datetime
           - name: food_type
             description: "The type of food"
             type: string

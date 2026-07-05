@@ -8,6 +8,9 @@ semantic_models:
       - name: uuid
         type: primary
 
+    defaults:
+      agg_time_dimension: glucose_timestamp
+
     dimensions:
       - name: glucose_timestamp
         type: time
@@ -38,6 +41,9 @@ semantic_models:
     entities:
       - name: uuid
         type: primary
+
+    defaults:
+      agg_time_dimension: timestamp_day
 
     dimensions:
 
@@ -73,6 +79,9 @@ semantic_models:
       - name: activity_id
         type: primary
 
+    defaults:
+      agg_time_dimension: start_date_local
+
     dimensions:
       - name: start_date_local
         type: time
@@ -94,7 +103,19 @@ semantic_models:
       - name: uuid
         type: primary
 
+    defaults:
+      agg_time_dimension: food_timestamp_day
+
     dimensions:
+      - name: food_timestamp_day
+        expr: timestamp_day
+        type: time
+        type_params:
+          time_granularity: day
+        description: "The day the food was recorded"
+      - name: timehour
+        type: categorical
+        description: "The hour of day the food was recorded"
       - name: food_type
         type: categorical
         description: "The type of the food item"

@@ -1,0 +1,120 @@
+version: 2
+
+models:
+  - name: view_glucose_register
+    description: "This view contains glucose register data."
+    columns:
+      - name: uuid
+        description: "The unique identifier for each record"
+        data_type: varchar(64)
+      - name: glucose_timestamp
+        description: "The timestamp of the glucose measurement"
+        data_type: datetime(6)
+      - name: glucose_timestamp_hour
+        description: "The hour of the glucose measurement"
+        data_type: int
+      - name: glucose_timestamp_day
+        description: "The day of the glucose measurement"
+        data_type: date
+      - name: glucose_value
+        description: "The glucose level measurement"
+        data_type: double
+      - name: sensor_scan
+        description: "Indicates whether the glucose value was obtained through a sensor scan (1) or not (0)"
+        data_type: tinyint(1)
+
+  - name: view_insulin_register
+    description: "This view contains insulin register data."
+    columns:
+      - name: uuid
+        description: "The unique identifier for each record"
+        data_type: varchar(64)
+      - name: timestamp
+        description: "The timestamp of the insulin measurement"
+        data_type: datetime(6)
+      - name: timestamp_year
+        description: "The year of the timestamp"
+        data_type: int
+      - name: timestamp_month
+        description: "The month of the timestamp"
+        data_type: int
+      - name: timestamp_day
+        description: "The day of the timestamp"
+        data_type: int
+      - name: timestamp_hour
+        description: "The hour of the timestamp"
+        data_type: int
+      - name: insulin_value
+        description: "The insulin level measurement"
+        data_type: double
+      - name: is_rapid
+        description: "Indicates whether the insulin is rapid-acting (1) or not (0)"
+        data_type: tinyint(1)
+
+  - name: view_food_register
+    description: "This view contains food recognition data."
+    columns:
+      - name: uuid
+        description: "The unique identifier for each record"
+        data_type: char(36)
+      - name: file_uid
+        description: "The unique identifier for the file"
+        data_type: varchar(100)
+      - name: timehour
+        description: "The hour the food was recorded"
+        data_type: int
+      - name: timestamp_day
+        description: "The day the food was recorded"
+        data_type: date
+      - name: food_type
+        description: "The type of food"
+        data_type: varchar(100)
+      - name: glycemic_index
+        description: "The glycemic index of the food"
+        data_type: int
+      - name: weight_grams
+        description: "The weight of the food in grams"
+        data_type: int
+      - name: carbohydrate_percentage
+        description: "The percentage of carbohydrates in the food"
+        data_type: decimal(5,2)
+      - name: carbohydrate_weight_grams
+        description: "The weight of carbohydrates in grams"
+        data_type: decimal(8,2)
+      - name: absorption_type
+        description: "The type of absorption (e.g., fast, slow)"
+        data_type: varchar(10)
+
+  - name: view_strava_activities
+    description: "This view contains Strava activities data."
+    columns:
+      - name: activity_id
+        description: "The unique identifier for each record"
+        data_type: bigint
+      - name: name
+        description: "The name of the activity"
+        data_type: varchar(255)
+      - name: activity_type
+        description: "The type of activity (e.g., run, ride, swim)"
+        data_type: varchar(64)
+      - name: sport_type
+        description: "The sport type of the activity"
+        data_type: varchar(64)
+      - name: start_date
+        description: "The start date and time of the activity"
+        data_type: datetime
+      - name: start_date_local
+        description: "The local start date and time of the activity"
+        data_type: datetime
+      - name: distance_m
+        description: "The distance covered during the activity (in meters)"
+        data_type: float
+      - name: moving_time_s
+        description: "The moving time of the activity (in seconds)"
+        data_type: int
+      - name: elapsed_time_s
+        description: "The elapsed time of the activity (in seconds)"
+        data_type: int
+      - name: total_elevation_gain_m
+        description: "The total elevation gain during the activity (in meters)"
+        data_type: float
