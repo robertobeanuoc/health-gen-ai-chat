@@ -9,6 +9,9 @@ semantic_models:
         type: primary
 
     dimensions:
+      - name: timestamp
+        type: time
+        description: "The timestamp when the record was recorded"
 
       - name: timestamp_day
         type: time
