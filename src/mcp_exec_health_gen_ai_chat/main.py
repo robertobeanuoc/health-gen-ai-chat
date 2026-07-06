@@ -3,7 +3,9 @@ import logging
 import os
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import sqlglot
 from dotenv import load_dotenv
@@ -101,6 +103,29 @@ def _validate_select_query(sql_query: str) -> str | None:
     return None
 
 
+def _resolve_timezone_offset(timezone: str) -> str:
+    """
+    Resolves an IANA timezone name (e.g. "Europe/Madrid") to a fixed UTC offset
+    string (e.g. "+02:00"), suitable for MySQL's `SET time_zone`.
+
+    A fixed offset is used instead of passing the named zone straight through to
+    MySQL because named zones require the mysql.time_zone* tables to be
+    populated, which isn't guaranteed on the external/managed MySQL instances
+    this app connects to. The offset is computed from the current date, so it
+    already accounts for DST.
+    """
+    try:
+        tz = ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        raise ValueError(f"Unknown IANA timezone: '{timezone}'")
+
+    offset = datetime.now(tz).utcoffset()
+    total_minutes = int(offset.total_seconds() // 60)
+    sign = "+" if total_minutes >= 0 else "-"
+    total_minutes = abs(total_minutes)
+    return f"{sign}{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+
+
 def _build_url() -> URL:
     host = os.getenv("MYSQL_HOST", "")
     user = os.getenv("MYSQL_USER", "")
@@ -126,12 +151,19 @@ def _get_engine():
     return _engine
 
 @mcp.tool()
-def execute_read_query(sql_query: str) -> str:
+def execute_read_query(sql_query: str, timezone: str = "UTC") -> str:
     """
     Executes read-only SQL statements (DQL) on the MySQL database engine.
     Accepts any valid SELECT query generated from the semantic layer.
+
+    All datetime columns are stored in UTC. Pass the user's IANA timezone name
+    (e.g. "Europe/Madrid") as `timezone` — it's set as the session time zone
+    before the query runs — and wrap any datetime column you select, filter, or
+    group by with CONVERT_TZ(column, 'UTC', @@session.time_zone) in sql_query,
+    so the UTC-to-local conversion happens in the database rather than in your
+    own reasoning.
     """
-    logger.info("execute_read_query called | sql=%s", sql_query)
+    logger.info("execute_read_query called | sql=%s timezone=%s", sql_query, timezone)
 
     validation_error = _validate_select_query(sql_query)
     if validation_error:
@@ -139,7 +171,14 @@ def execute_read_query(sql_query: str) -> str:
         return validation_error
 
     try:
+        tz_offset = _resolve_timezone_offset(timezone)
+    except ValueError as e:
+        logger.warning("execute_read_query rejected | reason=invalid timezone | timezone=%s", timezone)
+        return f"Invalid timezone: {e}"
+
+    try:
         with _get_engine().connect() as connection:
+            connection.execute(text("SET time_zone = :tz"), {"tz": tz_offset})
             result = connection.execute(text(sql_query))
 
             columns = result.keys()

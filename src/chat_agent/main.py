@@ -10,6 +10,10 @@ Connects Claude Opus to three MCP servers:
 Run:
     ANTHROPIC_API_KEY=... MYSQL_ALCHEMY_URI=... python -m src.chat_agent.main
 
+Optional:
+    CHAT_TIMEZONE=Europe/Madrid  — IANA timezone name used to convert UTC-stored
+    datetime columns to local time in SQL. Defaults to UTC if unset.
+
 When the agent calls build_dashboard, the server persists the resulting
 dashboard config on the assistant message. The companion index.html embeds a
 Streamlit iframe (src/chat_agent/streamlit_dashboard.py) that fetches and
@@ -129,6 +133,7 @@ async def main_mcp():
         sys.exit(1)
 
     client = AsyncAnthropic(api_key=api_key)
+    timezone = os.getenv("CHAT_TIMEZONE")
 
     print("Health Gen AI Chat — type 'quit' to exit.\n")
 
@@ -177,7 +182,7 @@ async def main_mcp():
                 runner = client.beta.messages.tool_runner(
                     model="claude-sonnet-4-6",
                     max_tokens=16000,
-                    system=get_system_prompt(),
+                    system=get_system_prompt(timezone),
                     messages=messages,
                     tools=tools,
                     thinking={"type": "adaptive"},

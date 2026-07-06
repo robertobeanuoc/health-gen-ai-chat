@@ -41,6 +41,7 @@ class UpdateSessionRequest(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     content: str
+    timezone: str | None = None
 
 
 class ChatResponse(BaseModel):

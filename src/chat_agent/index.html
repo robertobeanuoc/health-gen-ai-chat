@@ -450,10 +450,11 @@
   }
 
   async function apiChat(sessionId, content) {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, content }),
+      body: JSON.stringify({ session_id: sessionId, content, timezone }),
     });
     if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
     return res.json();

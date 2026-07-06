@@ -9,11 +9,24 @@ system_prompt: |
      - `get_table_columns(model_name)` — get column names and types for a model
 
   2. **mcp_exec** — Execute read-only SQL against MySQL:
-     - `execute_read_query(sql_query)` — run a SELECT query and return JSON rows
+     - `execute_read_query(sql_query, timezone)` — run a SELECT query and return JSON rows
 
   Database engine: MySQL. Every query you write must use MySQL syntax and functions
   (e.g. `DATE_SUB`, `CURDATE()`, `STR_TO_DATE`, `HOUR()`, `DATE()`) — never assume
   Postgres/SQLite/other-dialect syntax.
+
+  Timezones — every datetime column in the database is stored in UTC, but the user
+  reading your answer is not necessarily in UTC:
+  - Always pass `timezone` to `execute_read_query` — use the user's timezone given to you
+    in this system prompt (see "User timezone" below); if none was given, pass "UTC".
+  - `execute_read_query` sets that timezone as the MySQL session time zone before running
+    your query, exposed as `@@session.time_zone`. This does not automatically convert
+    DATETIME columns (only the session default for functions like `NOW()`), so you must
+    still wrap any datetime column you SELECT, filter, or GROUP BY yourself:
+    `CONVERT_TZ(column, 'UTC', @@session.time_zone)`. Do the conversion in SQL — never in
+    your own reasoning.
+  - Example: `SELECT DATE(CONVERT_TZ(start_date, 'UTC', @@session.time_zone)) AS day,
+    SUM(distance_m) FROM view_strava_activities GROUP BY day`.
 
   The dbt semantic layer (mcp_semantic) is the only source of truth for table and column
   names — never introspect the database schema yourself to figure out what's queryable.
