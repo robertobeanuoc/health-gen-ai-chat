@@ -101,6 +101,14 @@ def render_charts(charts: list[dict]) -> None:
                 st.warning(f"Unsupported chart type: {chart_type}")
                 continue
 
+            # Plotly.js auto-detects a "date" axis type from date/time-looking string
+            # values and applies its own tick parsing/formatting on top of them — the
+            # same kind of silent reformatting the system prompt forbids the LLM from
+            # doing to query results. Forcing "category" for string x values displays
+            # exactly what execute_read_query returned, with no re-parsing.
+            if chart_type not in ("pie", "histogram") and x_data and isinstance(x_data[0], str):
+                fig.update_xaxes(type="category")
+
             fig.update_layout(xaxis_title=None, margin=dict(l=10, r=10, t=40, b=10))
             st.plotly_chart(fig, use_container_width=True)
         except Exception as exc:

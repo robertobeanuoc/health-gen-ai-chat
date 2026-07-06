@@ -14,11 +14,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 sys.path.insert(0, "src")
 
 from mcp_visualization_health_gen_ai_chat.main import build_dashboard  # noqa: E402
+import chat_agent.streamlit_dashboard as dashboard_module  # noqa: E402
 
 APP_PATH = str(Path("src/chat_agent/streamlit_dashboard.py").resolve())
 
@@ -157,3 +159,35 @@ def test_chart_with_no_data_is_skipped_silently():
     assert not at.exception
     assert not at.get("error")
     assert len(at.get("plotly_chart")) == 0
+
+
+@pytest.mark.parametrize("chart_type", ["line", "bar", "scatter", "area", "heatmap"])
+def test_date_like_x_values_are_forced_to_category_axis(chart_type):
+    """
+    Regression test: Plotly.js auto-detects a "date" axis type from date/time-
+    looking string values and applies its own tick parsing/formatting on top of
+    them, independent of what the Python trace data actually contains — the same
+    kind of silent reformatting the system prompt forbids the LLM from doing to
+    query results. render_charts must force a "category" x-axis for string x
+    values so what's shown is exactly what execute_read_query returned.
+    """
+    x = ["2026-07-06 00:53:35", "2026-07-06 01:53:34", "2026-07-06 02:53:34"]
+    y = [123.0, 149.0, 187.8]
+    data = {"x": x, "y": y} if chart_type != "histogram" else {"x": x}
+
+    captured = []
+    with patch.object(st, "plotly_chart", side_effect=lambda fig, **kw: captured.append(fig)):
+        dashboard_module.render_charts([{"type": chart_type, "title": "t", "data": data}])
+
+    assert len(captured) == 1
+    assert captured[0].layout.xaxis.type == "category"
+
+
+def test_numeric_x_values_keep_default_axis_type():
+    """Forcing category must only kick in for date/time-like strings, not real numeric data."""
+    captured = []
+    with patch.object(st, "plotly_chart", side_effect=lambda fig, **kw: captured.append(fig)):
+        dashboard_module.render_charts([{"type": "scatter", "title": "t", "data": {"x": [1, 2, 3], "y": [4, 1, 6]}}])
+
+    assert len(captured) == 1
+    assert captured[0].layout.xaxis.type != "category"
