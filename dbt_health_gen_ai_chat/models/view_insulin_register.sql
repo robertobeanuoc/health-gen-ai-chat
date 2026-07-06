@@ -13,6 +13,6 @@ SELECT
     timestamp_day,
     timestamp_hour,
     insulin_value,
-    is_rapid 
+    is_rapid
 
 FROM {{ source('abbot', 'insulin_register') }}

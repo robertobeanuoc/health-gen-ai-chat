@@ -99,3 +99,59 @@ def test_every_datetime_column_supports_convert_tz(dbt_manifests):
             )
 
     assert checked_at_least_one, "no datetime columns found across VIEW_MODELS — test is vacuous"
+
+
+def test_convert_tz_on_raw_column_matches_python_local_time(mysql_env):
+    """
+    Regression test for the actual bug reported: glucose_timestamp_hour/day
+    (and the equivalent insulin/food dimensions) are pre-computed from the raw
+    UTC timestamp with plain HOUR()/DATE() *inside the dbt view* — MySQL
+    forbids a view's own SELECT from referencing @@session.time_zone (error
+    1351), so those columns can never be corrected by anything the caller
+    does. The only column that can actually be converted is the raw
+    glucose_timestamp itself, and only by wrapping it in CONVERT_TZ in the
+    *outer* query (exactly what the system prompt instructs the LLM to do) —
+    this verifies that pattern produces the same local hour/day Python computes
+    for the same offset, and that the raw column is not silently pre-truncated.
+    """
+    tz_name = "Pacific/Kiritimati"  # UTC+14 — guarantees an hour, and usually a day, shift from UTC
+
+    raw = execute_read_query(
+        "SELECT glucose_timestamp, "
+        "DATE(CONVERT_TZ(glucose_timestamp, 'UTC', @@session.time_zone)) AS local_day, "
+        "HOUR(CONVERT_TZ(glucose_timestamp, 'UTC', @@session.time_zone)) AS local_hour "
+        "FROM view_glucose_register ORDER BY glucose_timestamp DESC LIMIT 1",
+        timezone=tz_name,
+    )
+    rows = json.loads(raw)
+    assert rows, f"view_glucose_register returned no rows: {raw}"
+
+    row = rows[0]
+    utc_ts = datetime.fromisoformat(row["glucose_timestamp"]).replace(tzinfo=ZoneInfo("UTC"))
+    local_ts = utc_ts.astimezone(ZoneInfo(tz_name))
+
+    assert row["local_hour"] == local_ts.hour
+    assert row["local_day"] == local_ts.date().isoformat()
+
+
+def test_view_precomputed_bucket_columns_stay_utc_regardless_of_timezone(mysql_env):
+    """
+    Documents the current limitation explained in config.yaml: glucose_timestamp_hour
+    is baked into the view as HOUR(`timestamp`) with no timezone awareness, so it must
+    be identical to HOUR(glucose_timestamp) taken at face value (UTC) no matter what
+    `timezone` is passed to execute_read_query — if this ever stops being true (e.g.
+    someone re-adds CONVERT_TZ inside the view, which MySQL will reject anyway), the
+    system prompt's guidance would be actively wrong.
+    """
+    raw = execute_read_query(
+        "SELECT glucose_timestamp, glucose_timestamp_hour, glucose_timestamp_day "
+        "FROM view_glucose_register ORDER BY glucose_timestamp DESC LIMIT 1",
+        timezone="Pacific/Kiritimati",
+    )
+    rows = json.loads(raw)
+    assert rows, f"view_glucose_register returned no rows: {raw}"
+
+    row = rows[0]
+    utc_ts = datetime.fromisoformat(row["glucose_timestamp"])
+    assert row["glucose_timestamp_hour"] == utc_ts.hour
+    assert row["glucose_timestamp_day"] == utc_ts.date().isoformat()
