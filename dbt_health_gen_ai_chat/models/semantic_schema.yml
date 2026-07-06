@@ -80,14 +80,14 @@ semantic_models:
         type: primary
 
     defaults:
-      agg_time_dimension: start_date_local
+      agg_time_dimension: start_date
 
     dimensions:
-      - name: start_date_local
+      - name: start_date
         type: time
         type_params:
           time_granularity: day
-        description: "The local start date and time of the activity"
+        description: "The start date and time of the activity (UTC)"
 
     measures:
       - name: distance_m_sum

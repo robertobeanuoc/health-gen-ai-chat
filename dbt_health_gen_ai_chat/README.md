@@ -117,7 +117,6 @@ Physical activity records synced from Strava.
 | `activity_type` | string | General type (Run, Ride, Swim, …) |
 | `sport_type` | string | Detailed sport classification |
 | `start_date` | datetime | UTC start time |
-| `start_date_local` | datetime | Local start time |
 | `distance_m` | double | Distance in metres |
 | `moving_time_s` | int | Moving time in seconds |
 | `elapsed_time_s` | int | Total elapsed time in seconds |
@@ -162,7 +161,7 @@ Defined in `models/semantic_schema.yml`. The semantic layer is consumed by the M
 | Concept | Name | Details |
 |---|---|---|
 | Entity | `activity_id` | Primary key |
-| Dimension | `start_date_local` | Time grain: day |
+| Dimension | `start_date` | Time grain: day |
 | Measure | `distance_m_sum` | `SUM(distance_m)` |
 
 ### `semantic_food`
