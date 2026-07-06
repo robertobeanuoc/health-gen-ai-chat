@@ -83,7 +83,7 @@ Returns all dimensions and their types for every semantic model in `semantic_man
     { "name": "sensor_scan", "type": "categorical" }
   ],
   "semantic_strava_activities": [
-    { "name": "start_date_local", "type": "time" }
+    { "name": "start_date", "type": "time" }
   ]
 }
 ```
@@ -182,7 +182,6 @@ Physical activity records synced from Strava.
 | `activity_type` | string | General type (Run, Ride, Swim, …) |
 | `sport_type` | string | Detailed sport classification |
 | `start_date` | datetime | UTC start time |
-| `start_date_local` | datetime | Local start time |
 | `distance_m` | double | Distance in metres |
 | `moving_time_s` | int | Moving time in seconds |
 | `elapsed_time_s` | int | Total elapsed time in seconds |
@@ -213,7 +212,7 @@ dbt view: `view_food_register` — adds `timehour` (`HOUR(created_at)`) and `tim
 | Semantic model | Source view | Primary entity | Measures | Dimensions |
 |---|---|---|---|---|
 | `semantic_glucose_register` | `view_glucose_register` | `uuid` | `glucose_value_average` (avg) | `timestamp_day` (time), `timestamp_hour` (cat), `sensor_scan` (cat) |
-| `semantic_strava_activities` | `view_strava_activities` | `activity_id` | `distance_m_sum` (sum) | `start_date_local` (time) |
+| `semantic_strava_activities` | `view_strava_activities` | `activity_id` | `distance_m_sum` (sum) | `start_date` (time) |
 | `semantic_food` | `view_food_register` | `uuid` | `weight_grams_sum` (sum), `weight_grams_average` (avg), `carbohydrate_weight_grams_sum` (sum), `carbohydrate_weight_grams_average` (avg) | `food_type` (cat), `absorption_type` (cat), `glycemic_index` (cat) |
 
 ## Error handling

@@ -60,10 +60,7 @@ sources:
             description: "The sport type of the activity"
             type: string
           - name: start_date
-            description: "The start date and time of the activity"
-            type: datetime
-          - name: start_date_local
-            description: "The local start date and time of the activity"
+            description: "The start date and time of the activity (UTC)"
             type: datetime
           - name: distance_m
             description: "The distance covered during the activity (in meters)"
