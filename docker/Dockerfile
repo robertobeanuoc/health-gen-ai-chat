@@ -17,6 +17,7 @@ COPY src/ ./src/
 COPY dbt_health_gen_ai_chat/ ./dbt_health_gen_ai_chat/
 
 COPY docker/entrypoint.sh ./entrypoint.sh
+COPY docker/wait_for_mysql.py ./docker/wait_for_mysql.py
 RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
