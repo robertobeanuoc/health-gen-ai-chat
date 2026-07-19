@@ -187,7 +187,7 @@ Docker Compose reads `.env` from the project root automatically and injects the 
 | Variable | Required | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key |
-| `MYSQL_HOST` | Yes | Use your host IP or a Docker network hostname — **not** `localhost` |
+| `MYSQL_HOST` | Yes | Use your host IP or a Docker network hostname — **not** `localhost` (e.g. `mysql-server` if that's the MySQL container's Docker name on a shared network) |
 | `MYSQL_PORT` | No | Defaults to `3306` |
 | `MYSQL_USER` | Yes | |
 | `MYSQL_PASSWORD` | Yes | |
@@ -197,6 +197,8 @@ Docker Compose reads `.env` from the project root automatically and injects the 
 The `streamlit` service reuses the same image with a different command, and is given `CHAT_API_BASE_URL=http://app:8000` so it can reach the chat backend over the Docker network.
 
 The dbt artifacts (`manifest.json`, `semantic_manifest.json`) are generated automatically at container startup — no need to compile them before building the image.
+
+Before compiling dbt artifacts or starting the server, the `app` container's entrypoint (`docker/wait_for_mysql.py`) polls `MYSQL_HOST:MYSQL_PORT` with a real PyMySQL connection every 5s and blocks until MySQL accepts it. This matters because the MySQL server (Docker name `mysql-server`) typically runs in its own Compose project here (no `depends_on` across separate compose files), so nothing otherwise stops the app from starting — and failing to connect — before MySQL has finished starting up.
 
 ---
 
@@ -234,7 +236,9 @@ health-gen-ai-chat/
 ├── docker-compose.yml                        # Docker Compose — builds and runs the app + Streamlit
 ├── .env.example                              # environment variable template
 ├── docker/
-│   └── Dockerfile                            # container image for the FastAPI server
+│   ├── Dockerfile                            # container image for the FastAPI server
+│   ├── entrypoint.sh                         # waits for MySQL, compiles dbt artifacts, starts uvicorn
+│   └── wait_for_mysql.py                     # entrypoint step: blocks until MySQL (mysql-server) accepts connections
 ├── dbt_health_gen_ai_chat/                   # dbt project
 │   ├── dbt_project.yml
 │   ├── models/

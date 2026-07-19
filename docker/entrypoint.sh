@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+echo "[entrypoint] Waiting for MySQL..."
+uv run python docker/wait_for_mysql.py
+
 echo "[entrypoint] Compiling dbt artifacts..."
 uv run dbt compile \
   --project-dir dbt_health_gen_ai_chat \
